@@ -1,8 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 
 export const runtime = "nodejs";
+
+function prismaErrorCode(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null || !("code" in error)) return undefined;
+  const c = (error as { code: unknown }).code;
+  return typeof c === "string" ? c : undefined;
+}
 
 function parseId(idRaw: string) {
   const id = Number(idRaw);
@@ -84,10 +89,7 @@ export async function PATCH(
     return NextResponse.json({ ok: true, line }, { status: 200 });
   } catch (error: unknown) {
     console.error(error);
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
+    if (prismaErrorCode(error) === "P2025") {
       return NextResponse.json(
         { ok: false, status: 404, message: "Lyric line not found" },
         { status: 404 }
