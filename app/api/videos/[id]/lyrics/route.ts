@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma, type PrismaTransactionClient } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -99,7 +99,7 @@ export async function PUT(
       );
     }
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: PrismaTransactionClient) => {
       await tx.lyricLine.deleteMany({ where: { videoId } });
       if (rawLines.length > 0) {
         await tx.lyricLine.createMany({
@@ -186,7 +186,7 @@ export async function POST(
       );
     }
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: PrismaTransactionClient) => {
       await tx.lyricLine.deleteMany({ where: { videoId } });
       if (segments.length > 0) {
         await tx.lyricLine.createMany({

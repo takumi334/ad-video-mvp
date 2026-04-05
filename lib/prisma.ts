@@ -1,4 +1,10 @@
 import { PrismaClient } from "@prisma/client";
+
+/** Interactive `$transaction` コールバックに渡されるクライアント（ITXClientDenyList と一致） */
+export type PrismaTransactionClient = Omit<
+  PrismaClient,
+  "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends"
+>;
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
