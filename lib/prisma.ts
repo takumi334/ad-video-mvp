@@ -1,12 +1,12 @@
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { Pool } from "pg";
 
 /** Interactive `$transaction` コールバックに渡されるクライアント（ITXClientDenyList と一致） */
 export type PrismaTransactionClient = Omit<
   PrismaClient,
   "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends"
 >;
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
 
 const rawConnectionString = process.env.DATABASE_URL?.trim();
 if (!rawConnectionString) {
