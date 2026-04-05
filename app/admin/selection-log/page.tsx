@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { Suspense, useMemo, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
-import type { CSSProperties } from "react";
 
 const ADMIN_KEY = "gegenpress-admin";
 const AUTOSAVE_PREFIX = "videoSyncAutosave:";
@@ -121,7 +120,7 @@ function collectRowsFromAutosave(key: string, raw: string): SelectionLogRow[] {
   return out;
 }
 
-export default function AdminSelectionLogPage() {
+function SelectionLogInner() {
   const params = useSearchParams();
   const key = params.get("key");
   const authorized = key === ADMIN_KEY;
@@ -211,6 +210,14 @@ export default function AdminSelectionLogPage() {
         </table>
       </div>
     </div>
+  );
+}
+
+export default function AdminSelectionLogPage() {
+  return (
+    <Suspense fallback={null}>
+      <SelectionLogInner />
+    </Suspense>
   );
 }
 
