@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { readFetchJson } from "@/lib/http/readFetchJson";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -22,12 +23,23 @@ export default function UploadPage() {
       fd.append("file", file);
 
       const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const json = await res.json();
+      const parsed = await readFetchJson<{
+        ok?: boolean;
+        message?: string;
+        video?: { id?: number };
+      }>(res);
 
-      if (!res.ok || !json?.ok) {
-        const message =
-          json?.message ?? "アップロードに失敗しました。もう一度お試しください。";
-        setError(message);
+      if (!parsed.ok) {
+        setError(parsed.message);
+        return;
+      }
+
+      const json = parsed.data;
+      if (!json?.ok) {
+        setError(
+          json?.message ??
+            "アップロードに失敗しました。もう一度お試しください。"
+        );
         return;
       }
 

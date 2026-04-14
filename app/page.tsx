@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { readFetchJson } from "@/lib/http/readFetchJson";
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
@@ -17,8 +18,17 @@ export default function Home() {
       const fd = new FormData();
       fd.append("file", file);
       const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const json = await res.json();
-      if (!res.ok || !json?.ok) {
+      const parsed = await readFetchJson<{
+        ok?: boolean;
+        message?: string;
+        video?: { id?: number };
+      }>(res);
+      if (!parsed.ok) {
+        setError(parsed.message);
+        return;
+      }
+      const json = parsed.data;
+      if (!json?.ok) {
         setError(json?.message ?? "アップロードに失敗しました。");
         return;
       }

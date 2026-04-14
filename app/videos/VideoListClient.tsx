@@ -1,5 +1,6 @@
 "use client";
 
+import { readFetchJson } from "@/lib/http/readFetchJson";
 import { useState } from "react";
 
 type Video = {
@@ -23,9 +24,19 @@ export function VideoListClient({ videos }: { videos: Video[] }) {
       const res = await fetch(`/api/videos/${id}`, {
         method: "DELETE",
       });
-      const json = await res.json();
+      const parsed = await readFetchJson<{
+        ok?: boolean;
+        message?: string;
+        status?: number;
+      }>(res);
 
-      if (!res.ok || !json?.ok) {
+      if (!parsed.ok) {
+        setError(`(${parsed.status}) ${parsed.message}`);
+        return;
+      }
+
+      const json = parsed.data;
+      if (!json?.ok) {
         const status = json?.status ?? res.status;
         const message =
           json?.message ?? "削除に失敗しました。もう一度お試しください。";
