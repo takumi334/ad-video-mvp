@@ -809,6 +809,7 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
   const [isPreviewOpen, setIsPreviewOpen] = useState(true);
   /** モバイル: 歌詞インポート補助UIは初期で閉じる */
   const [isMobileLyricsImportOpen, setIsMobileLyricsImportOpen] = useState(false);
+  const mobileEditSectionRef = useRef<HTMLDivElement | null>(null);
   /** 同期ページ: 「音声区間」セクションの開閉 */
   const [isAudioSectionsOpen, setIsAudioSectionsOpen] = useState(false);
   /** 初回マウント完了まで true にならない。これにより初回フレームで editor/preview が同時に出るのを防ぐ */
@@ -1890,6 +1891,19 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
     setActiveLineId(lineId);
   }, [nowSec, setLines]);
 
+  const handleMobileRecordNow = useCallback(() => {
+    if (!activeLine) return;
+    if (mobileAdjustTarget === "start") setStartToNow(activeLine.id);
+    else setEndToNow(activeLine.id);
+  }, [activeLine, mobileAdjustTarget, setStartToNow, setEndToNow]);
+
+  const handleOpenMobileEditSection = useCallback(() => {
+    if (!listOpen) setListOpen(true);
+    requestAnimationFrame(() => {
+      mobileEditSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [listOpen]);
+
   /** 歌詞行: VoiceSegmentPanel の Set start ボタン用。選択行の startSec を指定値に */
   const setStartToSec = useCallback((sec: number) => {
     if (activeLineId == null) return;
@@ -2501,6 +2515,21 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
             >
               {t("stop")}
             </button>
+            <button
+              type="button"
+              onClick={handleOpenMobileEditSection}
+              className="sync-toolbar-primary-btn sync-toolbar-primary-btn--compact"
+            >
+              区間編集
+            </button>
+            <button
+              type="button"
+              onClick={handleMobileRecordNow}
+              disabled={!activeLine}
+              className="sync-toolbar-primary-btn sync-toolbar-primary-btn--compact"
+            >
+              {mobileAdjustTarget === "start" ? "開始を記録" : "終了を記録"}
+            </button>
             <span style={{ fontSize: 13, minWidth: 96, color: "#334155" }}>
               {t("currentTime")} <strong>{formatSecToMinSec(nowSec)}</strong>
             </span>
@@ -2545,7 +2574,7 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
                 )}
               </div>
               {activeLine && (
-                <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
+                <div ref={mobileEditSectionRef} style={{ border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
                   <div style={{ fontWeight: 600, marginBottom: 8 }}>
                     {t("editingColon")} #{activeLine.index + 1}
                   </div>
