@@ -809,6 +809,7 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
   const [isPreviewOpen, setIsPreviewOpen] = useState(true);
   /** モバイル: 歌詞インポート補助UIは初期で閉じる */
   const [isMobileLyricsImportOpen, setIsMobileLyricsImportOpen] = useState(false);
+  const [mobilePhraseCursor, setMobilePhraseCursor] = useState(0);
   const mobileEditSectionRef = useRef<HTMLDivElement | null>(null);
   /** 同期ページ: 「音声区間」セクションの開閉 */
   const [isAudioSectionsOpen, setIsAudioSectionsOpen] = useState(false);
@@ -833,6 +834,42 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
   }, [activeLineId, safeLines]);
 
   const activeLine = activeIndex >= 0 ? safeLines[activeIndex] ?? null : null;
+  const mobilePhrases = useMemo<LyricPhraseQueueItem[]>(() => {
+    const sourceText = lyricsText.trim()
+      ? lyricsText
+      : safeLines
+          .map((line) => line.text?.trim() ?? "")
+          .filter(Boolean)
+          .join("\n");
+    if (!sourceText.trim()) return [];
+    const preset = getPresetParams("standard", "balance");
+    const splitPhrases = phraseifyWithPreset(sourceText, preset);
+    const chunks = autoGeneratePhraseChunks(splitPhrases, videoDuration, preset.secondsPerScreen);
+    return chunks
+      .map((text) => text.trim())
+      .filter(Boolean)
+      .map((text, idx) => ({ id: `mobile-phrase-${idx}-${text.slice(0, 16)}`, text }));
+  }, [lyricsText, safeLines, videoDuration]);
+
+  const mobileCurrentPhrase = mobilePhrases[mobilePhraseCursor] ?? null;
+  const mobileCurrentSegmentText = activeIndex >= 0 ? (segments[activeIndex]?.text ?? "").trim() : "";
+  const mobileSegmentFilledCount = useMemo(
+    () => segments.filter((seg) => (seg.text ?? "").trim().length > 0).length,
+    [segments]
+  );
+  const mobileAssignedPhrases = useMemo(() => {
+    const used = new Set(
+      segments.map((seg) => (seg.text ?? "").trim()).filter((text) => text.length > 0)
+    );
+    return mobilePhrases.filter((phrase) => used.has(phrase.text.trim()));
+  }, [segments, mobilePhrases]);
+
+  useEffect(() => {
+    setMobilePhraseCursor((prev) => {
+      if (mobilePhrases.length === 0) return 0;
+      return Math.max(0, Math.min(prev, mobilePhrases.length - 1));
+    });
+  }, [mobilePhrases.length]);
 
   // ----- フル再生用: 2つの video 要素の currentTime を同期して nowSec を更新 -----
   const setBothVideosTime = useCallback(
@@ -1904,6 +1941,18 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
     });
   }, [listOpen]);
 
+  const handleAssignPhraseToCurrentSegment = useCallback((phrase: LyricPhraseQueueItem) => {
+    if (activeIndex < 0) return;
+    setSegments((prev) =>
+      prev.map((seg, idx) => (idx === activeIndex ? { ...seg, text: phrase.text } : seg))
+    );
+    if (activeLine) {
+      setLines((prev) =>
+        prev.map((line) => (line.id === activeLine.id ? { ...line, text: phrase.text } : line))
+      );
+    }
+  }, [activeIndex, activeLine, setLines]);
+
   /** 歌詞行: VoiceSegmentPanel の Set start ボタン用。選択行の startSec を指定値に */
   const setStartToSec = useCallback((sec: number) => {
     if (activeLineId == null) return;
@@ -2533,6 +2582,111 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
             <span style={{ fontSize: 13, minWidth: 96, color: "#334155" }}>
               {t("currentTime")} <strong>{formatSecToMinSec(nowSec)}</strong>
             </span>
+          </div>
+          <div
+            style={{
+              marginTop: 8,
+              border: "1px solid #dbe3ef",
+              borderRadius: 8,
+              background: "#f8fbff",
+              padding: 10,
+            }}
+          >
+            <div style={{ fontSize: 12, color: "#334155", marginBottom: 8, fontWeight: 700 }}>
+              フレーズ割当（モバイル）
+            </div>
+            <div style={{ fontSize: 12, color: "#475569", marginBottom: 8, lineHeight: 1.5 }}>
+              現在区間: {activeLine ? `#${activeLine.index + 1}` : "未選択"} / 入力フレーズ: {mobilePhrases.length} / 割当済み:{" "}
+              {mobileSegmentFilledCount}
+            </div>
+            <div style={{ marginBottom: 8, fontSize: 12, color: "#0f172a", lineHeight: 1.5 }}>
+              <strong>この区間の歌詞:</strong> {mobileCurrentSegmentText || "（未設定）"}
+            </div>
+            <div style={{ marginBottom: 8, fontSize: 12, color: "#0f172a", lineHeight: 1.5 }}>
+              <strong>割当前の次フレーズ:</strong> {mobileCurrentPhrase?.text ?? "（なし）"}
+            </div>
+            <div style={{ marginBottom: 8, fontSize: 12, color: "#0f172a", lineHeight: 1.5 }}>
+              <strong>割当済みフレーズ:</strong>{" "}
+              {mobileAssignedPhrases.length > 0
+                ? mobileAssignedPhrases
+                    .slice(0, 3)
+                    .map((p) => p.text)
+                    .join(" / ")
+                : "（まだありません）"}
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+              <button
+                type="button"
+                onClick={() => setMobilePhraseCursor((v) => Math.max(0, v - 1))}
+                disabled={mobilePhrases.length === 0 || mobilePhraseCursor <= 0}
+                className="sync-toolbar-primary-btn sync-toolbar-primary-btn--compact"
+              >
+                前フレーズ
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!mobileCurrentPhrase) return;
+                  handleAssignPhraseToCurrentSegment(mobileCurrentPhrase);
+                  setMobilePhraseCursor((v) => Math.min(v + 1, Math.max(0, mobilePhrases.length - 1)));
+                }}
+                disabled={!activeLine || !mobileCurrentPhrase}
+                className="sync-toolbar-primary-btn sync-toolbar-primary-btn--compact"
+              >
+                現在区間へ割当
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setMobilePhraseCursor((v) =>
+                    mobilePhrases.length === 0 ? 0 : Math.min(v + 1, mobilePhrases.length - 1)
+                  )
+                }
+                disabled={mobilePhrases.length === 0 || mobilePhraseCursor >= mobilePhrases.length - 1}
+                className="sync-toolbar-primary-btn sync-toolbar-primary-btn--compact"
+              >
+                次フレーズ
+              </button>
+            </div>
+            {mobilePhrases.length > 0 ? (
+              <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+                {mobilePhrases.slice(0, 20).map((phrase, idx) => {
+                  const isCursor = idx === mobilePhraseCursor;
+                  const isAssigned = mobileAssignedPhrases.some((p) => p.id === phrase.id);
+                  return (
+                    <button
+                      key={phrase.id}
+                      type="button"
+                      onClick={() => {
+                        setMobilePhraseCursor(idx);
+                        handleAssignPhraseToCurrentSegment(phrase);
+                      }}
+                      style={{
+                        flex: "0 0 auto",
+                        border: isCursor ? "2px solid #2563eb" : "1px solid #cbd5e1",
+                        borderRadius: 999,
+                        padding: "6px 10px",
+                        background: isAssigned ? "#dcfce7" : "#fff",
+                        color: "#0f172a",
+                        fontSize: 12,
+                        cursor: "pointer",
+                        maxWidth: 220,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                      title={phrase.text}
+                    >
+                      {idx + 1}. {phrase.text}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ fontSize: 12, color: "#64748b" }}>
+                歌詞入力後にフレーズ化されます（Import lyrics で入力した内容も反映）。
+              </div>
+            )}
           </div>
         </div>
         <div style={{ flex: 1, padding: 12, paddingBottom: 24 }}>
