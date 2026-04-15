@@ -807,12 +807,21 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(true);
   /** 同期ページ: 「プレビュー（同期表示）」セクションの開閉（既定で開き、左カラムと併用しやすくする） */
   const [isPreviewOpen, setIsPreviewOpen] = useState(true);
+  /** モバイル: 歌詞インポート補助UIは初期で閉じる */
+  const [isMobileLyricsImportOpen, setIsMobileLyricsImportOpen] = useState(false);
   /** 同期ページ: 「音声区間」セクションの開閉 */
   const [isAudioSectionsOpen, setIsAudioSectionsOpen] = useState(false);
   /** 初回マウント完了まで true にならない。これにより初回フレームで editor/preview が同時に出るのを防ぐ */
   const isHydrated = useIsHydrated();
   const currentVideoUrl = localMaterialVideo?.url ?? video?.url ?? "";
   const aspectLayout = useMemo(() => getPreviewAspectLayout(previewAspectRatio), [previewAspectRatio]);
+  useEffect(() => {
+    if (isMobile) {
+      // モバイルは Preview を主表示にし、重複感のある full playback は初期で閉じる。
+      setIsFullPlayerOpen(false);
+    }
+  }, [isMobile]);
+
   const bumpPanelAutosaveTick = useCallback(() => {
     setPanelAutosaveTick((t) => t + 1);
   }, []);
@@ -2463,12 +2472,42 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
 
   if (isMobile) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 0, minHeight: "100vh" }}>
+      <div className="md:hidden" style={{ display: "flex", flexDirection: "column", gap: 0, minHeight: "100vh" }}>
         <div style={{ position: "sticky", top: 0, zIndex: 10, background: "#fff", padding: 8, marginTop: 8 }}>
-          {fullPlayerSection}
+          <div style={{ marginBottom: 8 }}>{syncPreviewPanel}</div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+              padding: "8px 10px",
+              border: "1px solid #ddd",
+              borderRadius: 8,
+              background: "#fff",
+            }}
+          >
+            <button
+              type="button"
+              onClick={handlePanelVideoPlay}
+              className="sync-toolbar-primary-btn sync-toolbar-primary-btn--compact"
+            >
+              {t("play")}
+            </button>
+            <button
+              type="button"
+              onClick={handlePanelVideoPause}
+              className="sync-toolbar-primary-btn sync-toolbar-primary-btn--compact"
+            >
+              {t("stop")}
+            </button>
+            <span style={{ fontSize: 13, minWidth: 96, color: "#334155" }}>
+              {t("currentTime")} <strong>{formatSecToMinSec(nowSec)}</strong>
+            </span>
+          </div>
         </div>
         <div style={{ flex: 1, padding: 12, paddingBottom: 24 }}>
-          <div style={{ marginBottom: 16 }}>{syncPreviewPanel}</div>
+          <div style={{ marginBottom: 16 }}>{fullPlayerSection}</div>
           {displayError && (
             <div style={{ color: "red", marginBottom: 8 }}>
               {t("errorPrefix")} {displayError}
@@ -2578,18 +2617,44 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
             </>
           )}
           <div style={{ marginTop: 16, borderTop: "1px solid #eee", paddingTop: 12 }}>
-            <div style={{ fontWeight: 600, marginBottom: 8 }}>{t("lyricsImportSection")}</div>
-            <textarea
-              className="lyrics-full-textarea"
-              value={lyricsText}
-              onChange={(e) => setLyricsText(e.target.value)}
-              rows={4}
-              placeholder={lyricsFullPlaceholder}
-              style={{ width: "100%", minHeight: 88 }}
-            />
-            <button type="button" onClick={importLyrics} disabled={isImporting} style={{ marginTop: 8 }}>
-              {isImporting ? t("importingEllipsis") : t("importOverwriteButton")}
+            <button
+              type="button"
+              onClick={() => setIsMobileLyricsImportOpen((v) => !v)}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                padding: "10px 12px",
+                border: "1px solid #ddd",
+                borderRadius: 8,
+                background: "#f8fafc",
+                cursor: "pointer",
+                textAlign: "left",
+                fontWeight: 600,
+              }}
+            >
+              <span>{t("lyricsImportSection")}</span>
+              <span aria-hidden style={{ flexShrink: 0, fontSize: 12, color: "#555" }}>
+                {isMobileLyricsImportOpen ? "▼" : "▶"}
+              </span>
             </button>
+            {isMobileLyricsImportOpen ? (
+              <div style={{ marginTop: 10 }}>
+                <textarea
+                  className="lyrics-full-textarea"
+                  value={lyricsText}
+                  onChange={(e) => setLyricsText(e.target.value)}
+                  rows={4}
+                  placeholder={lyricsFullPlaceholder}
+                  style={{ width: "100%", minHeight: 88 }}
+                />
+                <button type="button" onClick={importLyrics} disabled={isImporting} style={{ marginTop: 8 }}>
+                  {isImporting ? t("importingEllipsis") : t("importOverwriteButton")}
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -2677,7 +2742,11 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
           </button>
         </div>
       ) : null}
-      <div style={editorKeepAliveWhilePreviewStyle} aria-hidden={previewOpen ? true : undefined}>
+      <div
+        className="hidden md:block"
+        style={editorKeepAliveWhilePreviewStyle}
+        aria-hidden={previewOpen ? true : undefined}
+      >
       {/* 描画: 再生バー（再生/停止/現在時間/-1s/+1s/次の行へ）。grid 外に置き sticky で追従 */}
       <div
         style={{

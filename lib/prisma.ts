@@ -15,6 +15,26 @@ if (!rawConnectionString) {
   );
 }
 
+function getSafeDbHost(input: string): string {
+  try {
+    return new URL(input).hostname || "(empty-host)";
+  } catch {
+    return "(unparseable-url)";
+  }
+}
+
+function hasWrappingQuotes(input: string): boolean {
+  return input.length >= 2 && input.startsWith('"') && input.endsWith('"');
+}
+
+if (process.env.NODE_ENV === "production") {
+  console.info("[db] DATABASE_URL diagnostics", {
+    present: Boolean(process.env.DATABASE_URL),
+    hasWrappingQuotes: hasWrappingQuotes(rawConnectionString),
+    host: getSafeDbHost(rawConnectionString),
+  });
+}
+
 // ローカル開発のみ: self-signed certificate (Supabase 等) を許可して P1011 を回避する。
 // pg は connectionString の sslmode があると Pool の ssl オプションを上書きするため、
 // dev では URL から sslmode を除き、Pool の ssl: { rejectUnauthorized: false } のみで接続する。
