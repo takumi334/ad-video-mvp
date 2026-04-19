@@ -1,4 +1,5 @@
 import { prisma, type PrismaTransactionClient } from "@/lib/prisma";
+import { assertCanMutateVideo } from "@/lib/apiVideoAuth";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -36,7 +37,7 @@ export async function POST(
   try {
     const video = await prisma.video.findUnique({
       where: { id: videoId },
-      select: { id: true },
+      select: { id: true, ownerSecret: true, isPublic: true },
     });
     if (!video) {
       return NextResponse.json(
@@ -44,15 +45,22 @@ export async function POST(
         { status: 404 }
       );
     }
+    const auth = assertCanMutateVideo(req, video);
+    if (!auth.ok) {
+      return NextResponse.json(
+        { ok: false, status: auth.status, message: auth.message },
+        { status: auth.status }
+      );
+    }
 
     await prisma.$transaction(async (tx: PrismaTransactionClient) => {
       await tx.lyricLine.deleteMany({ where: { videoId } });
       if (rawLines.length > 0) {
         await tx.lyricLine.createMany({
-          data: rawLines.map((text: string, i: number) => ({
+          data: rawLines.map((lineText: string, i: number) => ({
             videoId,
             index: i,
-            text,
+            text: lineText,
             startSec: null,
             endSec: null,
           })),

@@ -1,6 +1,7 @@
 "use client";
 
 import { readFetchJson } from "@/lib/http/readFetchJson";
+import { getVideoOwnerSecret, ownerAuthHeaders } from "@/lib/videoOwnerToken";
 import { useState } from "react";
 
 type Video = {
@@ -19,10 +20,15 @@ export function VideoListClient({ videos }: { videos: Video[] }) {
 
   async function handleDelete(id: number) {
     setError(null);
+    if (!getVideoOwnerSecret(id)) {
+      setError("このブラウザに保存された所有者キーがありません。アップロードした端末でのみ削除できます。");
+      return;
+    }
     setDeletingId(id);
     try {
       const res = await fetch(`/api/videos/${id}`, {
         method: "DELETE",
+        headers: { ...ownerAuthHeaders(id) },
       });
       const parsed = await readFetchJson<{
         ok?: boolean;
@@ -122,7 +128,12 @@ export function VideoListClient({ videos }: { videos: Video[] }) {
                   <button
                     type="button"
                     onClick={() => handleDelete(video.id)}
-                    disabled={deletingId === video.id}
+                    disabled={deletingId === video.id || !getVideoOwnerSecret(video.id)}
+                    title={
+                      getVideoOwnerSecret(video.id)
+                        ? undefined
+                        : "アップロードした端末でのみ削除できます"
+                    }
                   >
                     {deletingId === video.id ? "削除中..." : "削除"}
                   </button>

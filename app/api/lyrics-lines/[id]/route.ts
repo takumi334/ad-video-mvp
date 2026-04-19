@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { assertCanMutateVideo } from "@/lib/apiVideoAuth";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -70,7 +71,32 @@ export async function PATCH(
   }
 
   try {
-    const line = await prisma.lyricLine.update({
+    const line = await prisma.lyricLine.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        videoId: true,
+        video: {
+          select: { ownerSecret: true, isPublic: true },
+        },
+      },
+    });
+    if (!line?.video) {
+      return NextResponse.json(
+        { ok: false, status: 404, message: "Lyric line not found" },
+        { status: 404 }
+      );
+    }
+
+    const auth = assertCanMutateVideo(req, line.video);
+    if (!auth.ok) {
+      return NextResponse.json(
+        { ok: false, status: auth.status, message: auth.message },
+        { status: auth.status }
+      );
+    }
+
+    const updated = await prisma.lyricLine.update({
       where: { id },
       data: {
         startSec,
@@ -86,7 +112,7 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json({ ok: true, line }, { status: 200 });
+    return NextResponse.json({ ok: true, line: updated }, { status: 200 });
   } catch (error: unknown) {
     console.error(error);
     if (prismaErrorCode(error) === "P2025") {
@@ -103,4 +129,3 @@ export async function PATCH(
     );
   }
 }
-

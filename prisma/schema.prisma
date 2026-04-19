@@ -20,6 +20,10 @@ model Video {
   size         Int
   mime         String
   createdAt    DateTime @default(now())
+  /** ブラウザが保持する所有者シークレット（未設定の旧データは変更不可） */
+  ownerSecret  String?
+  /** true のとき誰でも GET 可。新規作成は false（所有者のみ GET） */
+  isPublic     Boolean  @default(true)
 
   lyricLines   LyricLine[]
 }

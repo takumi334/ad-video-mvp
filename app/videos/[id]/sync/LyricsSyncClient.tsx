@@ -12,6 +12,7 @@ function useIsHydrated() {
   }, []);
   return isHydrated;
 }
+import { getVideoOwnerSecret } from "@/lib/videoOwnerToken";
 import { makeUniformSegments } from "@/lib/segments/makeUniformSegments";
 import { formatSecToMinSec } from "@/lib/time/format";
 import {
@@ -29,6 +30,9 @@ import {
   sessionDismissCrossResumeKey,
   type SourceVideoMeta,
 } from "@/lib/sourceVideoKey";
+import { autoGeneratePhraseChunks } from "@/lib/lyrics/autoGenerateChunks";
+import { getPresetParams } from "@/lib/lyrics/displayPresets";
+import { phraseifyWithPreset } from "@/lib/lyrics/phraseifyWithPreset";
 import { drawLyricsCaptionOnExportCanvas, getLyricsDisplayLines } from "@/lib/lyricsCaptionLayout";
 import { drawBrandEndCard } from "@/lib/export/exportBrandEndCard";
 import { PreviewLyricsCaptionAutoFit } from "@/lib/previewLyricsCaptionAutoFit";
@@ -55,6 +59,7 @@ import {
   type NameMaskPreset,
   type OverlayData,
   type VoiceSegmentPanelHandle,
+  type LyricPhraseQueueItem,
 } from "./VoiceSegmentPanel";
 import {
   drawPrivacyBrandMaskRegionsOnCanvas,
@@ -132,8 +137,17 @@ type LyricLine = {
   endSec: number | null;
 };
 
-async function fetchJson(url: string, init?: RequestInit): Promise<unknown> {
-  const res = await fetch(url, init);
+type FetchJsonInit = RequestInit & { ownerVideoId?: number };
+
+async function fetchJson(url: string, init?: FetchJsonInit): Promise<unknown> {
+  const ownerVideoId = init?.ownerVideoId;
+  const { ownerVideoId: _omit, ...rest } = init ?? {};
+  const headers = new Headers(rest.headers);
+  if (ownerVideoId != null) {
+    const s = getVideoOwnerSecret(ownerVideoId);
+    if (s) headers.set("Authorization", `Bearer ${s}`);
+  }
+  const res = await fetch(url, { ...rest, headers });
   if (!res.ok) {
     const t = await res.text();
     throw new Error(`API ${url} failed: ${res.status} ${t.slice(0, 200)}`);
@@ -592,8 +606,8 @@ function useVideoAndLyrics(videoId: number) {
     setError(null);
     try {
       const [vJson, lJson] = (await Promise.all([
-        fetchJson(`/api/videos/${videoId}`),
-        fetchJson(`/api/videos/${videoId}/lyrics`),
+        fetchJson(`/api/videos/${videoId}`, { ownerVideoId: videoId }),
+        fetchJson(`/api/videos/${videoId}/lyrics`, { ownerVideoId: videoId }),
       ])) as [{ ok?: boolean; video?: Video; message?: string }, { ok?: boolean; lines?: LyricLine[]; message?: string }];
       if (!vJson?.ok) {
         setError(vJson?.message ?? "動画の取得に失敗しました");
@@ -2049,6 +2063,7 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ videoId: video.id, lyrics }),
+        ownerVideoId: video.id,
       })) as { ok?: boolean; lines?: LyricLine[]; message?: string };
       if (!json?.ok) {
         setApiError(json?.message ?? "保存に失敗しました");
@@ -2136,6 +2151,7 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ startSec, endSec, text: line.text }),
+        ownerVideoId: videoId,
       })) as { ok?: boolean; line?: LyricLine; message?: string };
       if (!json?.ok) {
         setApiError(json?.message ?? "保存に失敗しました");
@@ -2161,6 +2177,7 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ text: lyricsText }),
+        ownerVideoId: video.id,
       })) as { ok?: boolean; lines?: LyricLine[]; message?: string };
       if (!json?.ok) {
         setApiError(json?.message ?? "歌詞の取り込みに失敗しました");

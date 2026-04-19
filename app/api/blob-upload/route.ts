@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { checkSimpleRateLimit, getClientIp } from "@/lib/rateLimitSimple";
 
 const MISSING_TOKEN_MESSAGE =
   "動画アップロード設定が未完了です。管理者が BLOB_READ_WRITE_TOKEN を設定してください。";
@@ -21,8 +22,15 @@ function logBlobTokenState(context: "GET" | "POST") {
   });
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   logBlobTokenState("GET");
+  const ip = getClientIp(request);
+  if (!checkSimpleRateLimit(`blob-upload-get:${ip}`, 120, 60_000)) {
+    return NextResponse.json(
+      { ok: false, status: 429, message: "Too many requests. Try again later." },
+      { status: 429 }
+    );
+  }
   if (!hasBlobToken()) {
     return NextResponse.json(
       { ok: false, status: 503, message: MISSING_TOKEN_MESSAGE },
@@ -32,8 +40,15 @@ export async function GET() {
   return NextResponse.json({ ok: true }, { status: 200 });
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   logBlobTokenState("POST");
+  const ip = getClientIp(request);
+  if (!checkSimpleRateLimit(`blob-upload-post:${ip}`, 40, 60_000)) {
+    return NextResponse.json(
+      { ok: false, status: 429, message: "Too many requests. Try again later." },
+      { status: 429 }
+    );
+  }
   if (!hasBlobToken()) {
     return NextResponse.json(
       { ok: false, status: 503, message: MISSING_TOKEN_MESSAGE },

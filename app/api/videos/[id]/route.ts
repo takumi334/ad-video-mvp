@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
+import {
+  assertCanMutateVideo,
+  canReadVideo,
+  getBearerToken,
+} from "@/lib/apiVideoAuth";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -12,7 +17,7 @@ function parseId(idRaw: string) {
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: idRaw } = await params;
@@ -26,7 +31,15 @@ export async function GET(
   try {
     const video = await prisma.video.findUnique({
       where: { id },
-      select: { id: true, url: true, originalName: true, size: true, createdAt: true },
+      select: {
+        id: true,
+        url: true,
+        originalName: true,
+        size: true,
+        createdAt: true,
+        ownerSecret: true,
+        isPublic: true,
+      },
     });
     if (!video) {
       return NextResponse.json(
@@ -34,8 +47,16 @@ export async function GET(
         { status: 404 }
       );
     }
+    const bearer = getBearerToken(req);
+    if (!canReadVideo(video, bearer)) {
+      return NextResponse.json(
+        { ok: false, status: 404, message: "Video not found" },
+        { status: 404 }
+      );
+    }
+    const { ownerSecret: _o, isPublic: _p, ...safe } = video;
     return NextResponse.json(
-      { ok: true, video: { ...video, createdAt: video.createdAt.toISOString() } },
+      { ok: true, video: { ...safe, createdAt: video.createdAt.toISOString() } },
       { status: 200 }
     );
   } catch (error) {
@@ -50,7 +71,7 @@ export async function GET(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: idRaw } = await params;
@@ -69,6 +90,12 @@ export async function DELETE(
   try {
     const video = await prisma.video.findUnique({
       where: { id },
+      select: {
+        id: true,
+        url: true,
+        ownerSecret: true,
+        isPublic: true,
+      },
     });
 
     if (!video) {
@@ -79,6 +106,14 @@ export async function DELETE(
           message: "Video not found",
         },
         { status: 404 }
+      );
+    }
+
+    const auth = assertCanMutateVideo(req, video);
+    if (!auth.ok) {
+      return NextResponse.json(
+        { ok: false, status: auth.status, message: auth.message },
+        { status: auth.status }
       );
     }
 
@@ -121,4 +156,3 @@ export async function DELETE(
     );
   }
 }
-

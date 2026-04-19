@@ -9,6 +9,7 @@ import {
   formatBytes,
   MAX_VIDEO_UPLOAD_BYTES,
 } from "@/lib/upload/videoUpload";
+import { generateOwnerSecret, setVideoOwnerSecret } from "@/lib/videoOwnerToken";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function UploadPage() {
 
     setIsUploading(true);
     setError(null);
+    const ownerSecret = generateOwnerSecret();
 
     try {
       const configRes = await fetch("/api/blob-upload", { method: "GET" });
@@ -55,6 +57,7 @@ export default function UploadPage() {
           url: blob.url,
           size: file.size,
           mime: file.type || "video/mp4",
+          ownerSecret,
         }),
       });
       const parsed = await readFetchJson<{
@@ -79,6 +82,7 @@ export default function UploadPage() {
 
       const video = json.video;
       if (video?.id != null) {
+        setVideoOwnerSecret(video.id, ownerSecret);
         router.push(`/videos/${video.id}/sync`);
         return;
       }

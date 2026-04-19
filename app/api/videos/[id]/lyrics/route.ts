@@ -1,4 +1,9 @@
 import { prisma, type PrismaTransactionClient } from "@/lib/prisma";
+import {
+  assertCanMutateVideo,
+  canReadVideo,
+  getBearerToken,
+} from "@/lib/apiVideoAuth";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -13,8 +18,15 @@ function parseVideoId(idRaw: string) {
   return id;
 }
 
+async function loadVideoAuth(videoId: number) {
+  return prisma.video.findUnique({
+    where: { id: videoId },
+    select: { id: true, ownerSecret: true, isPublic: true },
+  });
+}
+
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -27,11 +39,15 @@ export async function GET(
   }
 
   try {
-    const video = await prisma.video.findUnique({
-      where: { id: videoId },
-      select: { id: true },
-    });
+    const video = await loadVideoAuth(videoId);
     if (!video) {
+      return NextResponse.json(
+        { ok: false, status: 404, message: "Video not found" },
+        { status: 404 }
+      );
+    }
+    const bearer = getBearerToken(req);
+    if (!canReadVideo(video, bearer)) {
       return NextResponse.json(
         { ok: false, status: 404, message: "Video not found" },
         { status: 404 }
@@ -88,14 +104,18 @@ export async function PUT(
     .filter((s: string) => s.length > 0);
 
   try {
-    const video = await prisma.video.findUnique({
-      where: { id: videoId },
-      select: { id: true },
-    });
+    const video = await loadVideoAuth(videoId);
     if (!video) {
       return NextResponse.json(
         { ok: false, status: 404, message: "Video not found" },
         { status: 404 }
+      );
+    }
+    const auth = assertCanMutateVideo(req, video);
+    if (!auth.ok) {
+      return NextResponse.json(
+        { ok: false, status: auth.status, message: auth.message },
+        { status: auth.status }
       );
     }
 
@@ -175,14 +195,18 @@ export async function POST(
   const segments: LyricsSegment[] = lyricsRaw.filter(isLyricsSegment);
 
   try {
-    const video = await prisma.video.findUnique({
-      where: { id: videoId },
-      select: { id: true },
-    });
+    const video = await loadVideoAuth(videoId);
     if (!video) {
       return NextResponse.json(
         { ok: false, status: 404, message: "Video not found" },
         { status: 404 }
+      );
+    }
+    const auth = assertCanMutateVideo(req, video);
+    if (!auth.ok) {
+      return NextResponse.json(
+        { ok: false, status: auth.status, message: auth.message },
+        { status: auth.status }
       );
     }
 
