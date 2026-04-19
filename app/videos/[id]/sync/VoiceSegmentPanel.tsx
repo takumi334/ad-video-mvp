@@ -16,14 +16,13 @@ import {
 import { createPortal } from "react-dom";
 import type { SearchImageResult } from "@/app/api/search-images/route";
 import {
-  getPresetParams,
-  getSongStyleLabel,
-  getDisplayTempoLabel,
+  getPresetNumericParams,
   SONG_STYLES,
   DISPLAY_TEMPOS,
   type SongStyle,
   type DisplayTempo,
 } from "@/lib/lyrics/displayPresets";
+import type { UiStringKey } from "@/lib/i18n/uiDictionary";
 import { autoGeneratePhraseChunks } from "@/lib/lyrics/autoGenerateChunks";
 import { phraseifyWithPreset } from "@/lib/lyrics/phraseifyWithPreset";
 import { formatSecToMinSec, parseTimeToSec } from "@/lib/time/format";
@@ -163,6 +162,19 @@ function normalizePhraseQueueImport(raw: unknown): LyricPhraseQueueItem[] {
 /** フレーズキュー行の DnD（タイムラインへのドロップ）用 */
 const DRAG_PHRASE_QUEUE_INDEX_KEY = "application/x-lyric-index";
 
+const SONG_STYLE_KEYS: Record<SongStyle, UiStringKey> = {
+  shittori: "songStyle_shittori",
+  standard: "songStyle_standard",
+  tempo: "songStyle_tempo",
+  rap: "songStyle_rap",
+};
+
+const DISPLAY_TEMPO_KEYS: Record<DisplayTempo, UiStringKey> = {
+  readability: "displayTempo_readability",
+  balance: "displayTempo_balance",
+  rhythm: "displayTempo_rhythm",
+};
+
 type LyricPhraseQueueRowProps = {
   item: LyricPhraseQueueItem;
   index: number;
@@ -193,6 +205,7 @@ const LyricPhraseQueueRow = memo(function LyricPhraseQueueRow({
   onJoin,
   onCopyThisRow,
 }: LyricPhraseQueueRowProps) {
+  const { t } = useUiLocale();
   const phraseQueueRowStyle: CSSProperties = {
     display: "flex",
     alignItems: "center",
@@ -227,7 +240,7 @@ const LyricPhraseQueueRow = memo(function LyricPhraseQueueRow({
         onDoubleClickInsert();
       }}
       style={phraseQueueRowStyle}
-      title="クリック: 対応するタイムライン区間を編集対象にする / ダブルクリック: 編集中区間の歌詞に挿入"
+      title={t("phraseQueueRowTitle")}
     >
       <span
         style={{
@@ -248,7 +261,7 @@ const LyricPhraseQueueRow = memo(function LyricPhraseQueueRow({
           onMoveUp();
         }}
         disabled={index === 0}
-        title="上へ"
+        title={t("phraseQueueMoveUpTitle")}
       >
         ↑
       </button>
@@ -260,7 +273,7 @@ const LyricPhraseQueueRow = memo(function LyricPhraseQueueRow({
           onMoveDown();
         }}
         disabled={index === queueLength - 1}
-        title="下へ"
+        title={t("phraseQueueMoveDownTitle")}
       >
         ↓
       </button>
@@ -271,9 +284,9 @@ const LyricPhraseQueueRow = memo(function LyricPhraseQueueRow({
           e.preventDefault();
           onSplit();
         }}
-        title="分割"
+        title={t("phraseSplit")}
       >
-        分割
+        {t("phraseSplit")}
       </button>
       <button
         type="button"
@@ -283,9 +296,9 @@ const LyricPhraseQueueRow = memo(function LyricPhraseQueueRow({
           onJoin();
         }}
         disabled={index === queueLength - 1}
-        title="結合"
+        title={t("phraseJoin")}
       >
-        結合
+        {t("phraseJoin")}
       </button>
       {onCopyThisRow ? (
         <button
@@ -299,10 +312,10 @@ const LyricPhraseQueueRow = memo(function LyricPhraseQueueRow({
             e.stopPropagation();
             onCopyThisRow(e);
           }}
-          title="この行を内部コピー（再生しない・上の再生バーと誤爆しにくい）"
+          title={t("phraseCopyRowTitle")}
           style={{ padding: "2px 6px", fontSize: 11, flexShrink: 0 }}
         >
-          行コピー
+          {t("phraseCopyRow")}
         </button>
       ) : null}
     </li>
@@ -536,13 +549,14 @@ function isSegmentUploadVideoFormatSupported(f: File): boolean {
 }
 
 function validateSegmentUploadVideoFile(
-  f: File
+  f: File,
+  t: (key: UiStringKey) => string
 ): { ok: true } | { ok: false; message: string } {
   if (!isSegmentUploadVideoFormatSupported(f)) {
-    return { ok: false, message: "対応形式は MP4 / WebM のみです。" };
+    return { ok: false, message: t("segmentVideoInvalidFormat") };
   }
   if (f.size > SEGMENT_UPLOAD_VIDEO_MAX_BYTES) {
-    return { ok: false, message: "ファイルサイズは 20MB 以下にしてください。" };
+    return { ok: false, message: t("segmentVideoTooLarge") };
   }
   return { ok: true };
 }
@@ -826,10 +840,7 @@ const PREVIEW_MODAL_SUGGEST_PER_PAGE = 6;
 /** 候補画像一覧の独立スクロール領域の高さ（固定で画面揺れ防止） */
 const MODAL_SUGGEST_LIST_MIN_HEIGHT = 200;
 const MODAL_SUGGEST_LIST_MAX_HEIGHT = "min(286px, 45vh)";
-const COMPOSITE_MODE_OPTIONS: Array<{ value: SegmentCompositeMode; label: string }> = [
-  { value: "mosaic", label: "mosaic（ピクセルモザイク）" },
-  { value: "blackMaskWithBrand", label: "blackMaskWithBrand（黒塗り＋gegenpress app）" },
-];
+const COMPOSITE_MODE_VALUES: SegmentCompositeMode[] = ["mosaic", "blackMaskWithBrand"];
 
 const PRIVACY_BRAND_LABEL = "gegenpress app";
 
@@ -961,14 +972,6 @@ function defaultBrandMaskRegion(): SegmentBrandMaskRegion {
     opacity: 1,
   };
 }
-const OVERLAY_POSITION_OPTIONS: Array<{ value: SegmentOverlayPosition; label: string }> = [
-  { value: "center", label: "中央" },
-  { value: "topLeft", label: "左上" },
-  { value: "topRight", label: "右上" },
-  { value: "bottomLeft", label: "左下" },
-  { value: "bottomRight", label: "右下" },
-];
-
 /**
  * メイン（トップ）パネルの「画像候補①広告」「画像候補②Pixabay」・タグチップ・再検索・青枠向け一覧。
  * false で非表示（関連 state / ハンドラは維持）。区間編集モーダル内の画像・検索 UI は常に表示。
@@ -985,8 +988,11 @@ const ModalSuggestImageTile = memo(function ModalSuggestImageTile({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const { t } = useUiLocale();
   const thumb = img.previewUrl?.trim() ?? "";
-  const title = img.title ? `${img.title} をこの区間の背景に設定` : "この区間の背景に設定";
+  const title = img.title
+    ? t("imageTileUseAsBackgroundNamed").replace("{title}", img.title)
+    : t("imageTileUseAsBackground");
   return (
     <button
       type="button"
@@ -1021,7 +1027,7 @@ const ModalSuggestImageTile = memo(function ModalSuggestImageTile({
             borderRadius: 4,
           }}
         >
-          選択中
+          {t("imageTileSelectedPill")}
         </span>
       ) : null}
       {thumb ? (
@@ -1189,6 +1195,15 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
   ref
 ) {
   const { t, screenFilterLabel, overlayPosLabel } = useUiLocale();
+  const compositeModeOptions = useMemo(
+    () =>
+      COMPOSITE_MODE_VALUES.map((value) => ({
+        value,
+        label:
+          value === "mosaic" ? t("compositeModeMosaicOption") : t("compositeModeBlackMaskOption"),
+      })),
+    [t]
+  );
   const applyFromSourceLatestRef = useRef(applyFromSource);
   applyFromSourceLatestRef.current = applyFromSource;
   const applyFullTextTriggerId = applyFromSource == null ? -1 : applyFromSource.id;
@@ -1729,6 +1744,19 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
   const [songStyle, setSongStyle] = useState<SongStyle>("standard");
   /** 自動展開: 表示テンポの好み（見やすさ優先/バランス/ノリ優先） */
   const [displayTempo, setDisplayTempo] = useState<DisplayTempo>("balance");
+
+  const phrasePresetDescription = useMemo(() => {
+    const n = getPresetNumericParams(songStyle, displayTempo);
+    return [
+      t(SONG_STYLE_KEYS[songStyle]),
+      t(DISPLAY_TEMPO_KEYS[displayTempo]),
+      t("presetDescriptionTech")
+        .replace("{merge}", String(n.mergeShortBelow))
+        .replace("{split}", String(n.splitLongAbove))
+        .replace("{sec}", String(n.secondsPerScreen)),
+    ].join("");
+  }, [songStyle, displayTempo, t]);
+
   /** 間奏: 開始・終了秒で追加する区間（タイムラインに開始時刻でマージ表示） */
   const [manualInterludes, setManualInterludes] = useState<{ startSec: number; endSec: number }[]>([]);
   /** importProjectState 直後に一度だけ適用する保存済みタイムライン（無音・Brand 含む） */
@@ -2891,14 +2919,14 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
   /** タイムラインをクリア（確認付き）。手動で作り直すときに使用 */
   function handleClearTimeline() {
     if (manualVoiceSegments.length === 0) return;
-    if (!window.confirm("タイムラインをすべてクリアしてよろしいですか？\n手動で作成した区間がすべて削除されます。")) return;
+    if (!window.confirm(t("clearTimelineConfirm"))) return;
     setManualVoiceSegments([]);
     setPendingVoiceStart(null);
     setManualRecordingState("idle");
   }
 
   function handlePhraseify() {
-    const params = getPresetParams(songStyle, displayTempo);
+    const params = getPresetNumericParams(songStyle, displayTempo);
     const q = phraseifyWithPreset(lyricsFullText, params);
     setPhraseQueue(stringsToPhraseQueueItems(q));
   }
@@ -2911,9 +2939,9 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
     const text = sourceText.trim();
     if (!text) return null;
     if (!options?.skipConfirm && (phraseQueue.length > 0 || themeKeywords.length > 0)) {
-      if (!window.confirm("フレーズキューと曲イメージ候補を上書きします。よろしいですか？")) return null;
+      if (!window.confirm(t("overwritePhraseQueueConfirm"))) return null;
     }
-    const params = getPresetParams(songStyle, displayTempo);
+    const params = getPresetNumericParams(songStyle, displayTempo);
     const phrases = phraseifyWithPreset(text, params);
     setPhraseQueue(stringsToPhraseQueueItems(phrases));
     setLyricsFullText(text);
@@ -2988,7 +3016,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
     lyricsOverride?: string,
     options?: { secondsPerScreenOverride?: number }
   ) {
-    const params = getPresetParams(songStyle, displayTempo);
+    const params = getPresetNumericParams(songStyle, displayTempo);
     const raw = (
       lyricsOverride ??
       (phraseQueue.length > 0 ? phraseQueue.map((p) => p.text).join("\n") : lyricsFullText)
@@ -3354,7 +3382,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
 
   function splitLyric(index: number) {
     const raw = window.prompt(
-      "分割する位置（文字数）を入力:",
+      t("phraseSplitPositionPrompt"),
       String(Math.floor(phraseQueue[index]?.text.length / 2) || 0)
     );
     const n = raw ? parseInt(raw, 10) : NaN;
@@ -4345,7 +4373,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
     if (seg?.type !== "voice") return;
     const voiceIdx = getVoiceIndexFromTimelineRow(segIndex);
     const maxSec = videoDuration != null && Number.isFinite(videoDuration) ? videoDuration : Infinity;
-    const slotSec = getPresetParams(songStyle, displayTempo).secondsPerScreen;
+    const slotSec = getPresetNumericParams(songStyle, displayTempo).secondsPerScreen;
     const endSec = Math.max(0, Math.min(t, maxSec));
     setManualVoiceSegments((prev) => {
       const next = prev.map((v) => ({ ...v }));
@@ -5413,10 +5441,10 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                 id="local-upload-autosave-hint-title"
                 style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 700, color: "#111" }}
               >
-                端末内の画像について
+                {t("localImageDialogTitle")}
               </h2>
               <p style={{ margin: "0 0 18px", fontSize: 14, lineHeight: 1.55, color: "#333" }}>
-                この画像は自動保存の対象外で、再読み込み後は再選択が必要な場合があります。
+                {t("localImageDialogBody")}
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <button
@@ -5433,7 +5461,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                     cursor: "pointer",
                   }}
                 >
-                  理解して続ける
+                  {t("localImageDialogContinue")}
                 </button>
                 <button
                   type="button"
@@ -5447,7 +5475,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                     cursor: "pointer",
                   }}
                 >
-                  キャンセル
+                  {t("localImageDialogCancel")}
                 </button>
                 <button
                   type="button"
@@ -5463,7 +5491,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                     textDecoration: "underline",
                   }}
                 >
-                  次回から表示しない
+                  {t("localImageDialogDontShowAgain")}
                 </button>
               </div>
             </div>
@@ -5481,7 +5509,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="区間編集・確認（画像と歌詞・範囲限定再生）"
+        aria-label={t("segmentEditorModalAria")}
         tabIndex={-1}
         onKeyDown={(e) => e.key === "Escape" && setPreviewRowIndex(null)}
         style={{
@@ -5687,12 +5715,12 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                     );
                   const typeLabel =
                     flowSeg?.isBranding
-                      ? "Branding"
+                      ? t("segmentTypeBrand")
                       : flowSeg?.type === "silence"
-                      ? "無音"
-                      : flowSeg?.type === "interlude"
-                        ? "インタールード"
-                        : "声区間";
+                        ? t("timelineRowTypeSilence")
+                        : flowSeg?.type === "interlude"
+                          ? t("timelineRowTypeInterlude")
+                          : t("timelineRowTypeVoice");
                   const isEditingHighlight = fi === previewRowIndex;
                   /** flowPreviewSegments へ start/end も上書きしているので、そのまま表示・計算に使う */
                   const segForFlowBanner = flowSeg;
@@ -5749,7 +5777,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                           <button
                             type="button"
                             onClick={() => jumpFlowPreviewToSegment(fi)}
-                            title="表示中の区間を編集へ切り替え（行番号をクリック）"
+                            title={t("flowJumpToSegmentTitle")}
                             style={{
                               font: "inherit",
                               fontFamily: "ui-monospace, monospace",
@@ -5766,18 +5794,23 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             {fi + 1} / {timelineSegments.length}
                           </button>
                           <span>
-                            （長さ {durLabel}
-                            {isEditingHighlight ? " · 編集中" : ""}）
+                            （{t("flowLengthLabel")} {durLabel}
+                            {isEditingHighlight ? t("flowEditingMarker") : ""}）
                           </span>
                         </span>
                         {isFlowPlaying ? (
                           <span style={{ fontSize: 11, color: "#fff" }}>
-                            全体 {flowTimeWithinScopeSec.toFixed(1)}s / {flowPlaybackDurationSec.toFixed(1)}s · 区間内{" "}
-                            {flowLocalForDisplay.toFixed(3)}s / {durLabel}
+                            {t("flowProgressPlaying")
+                              .replace("{allCur}", flowTimeWithinScopeSec.toFixed(1))
+                              .replace("{allTotal}", flowPlaybackDurationSec.toFixed(1))
+                              .replace("{local}", flowLocalForDisplay.toFixed(3))
+                              .replace("{dur}", durLabel)}
                           </span>
                         ) : (
                           <span style={{ fontSize: 11, color: "#fff" }}>
-                            停止中 · 区間内 {flowLocalForDisplay.toFixed(3)}s / {durLabel}
+                            {t("flowProgressStopped")
+                              .replace("{local}", flowLocalForDisplay.toFixed(3))
+                              .replace("{dur}", durLabel)}
                           </span>
                         )}
                         <span style={{ fontSize: 11, color: "#fff" }}>{typeLabel}</span>
@@ -5791,9 +5824,9 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                           }}
                           disabled={isFlowPlaying || flowPlaybackDurationSec <= 0}
                           style={{ padding: "4px 10px", fontSize: 12, color: "#fff", opacity: isFlowPlaying ? 0.45 : 1 }}
-                          title="編集全体を先頭から最後まで連続再生（書き出し確認用。停止位置から再開も可）"
+                          title={t("flowPlayAllTitleLong")}
                         >
-                          全体再生
+                          {t("flowPlayWholeButton")}
                         </button>
                         <button
                           type="button"
@@ -5801,7 +5834,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             stopFlowPlayback();
                           }}
                           style={{ padding: "4px 10px", fontSize: 12, color: "#fff" }}
-                          title="全体再生を停止"
+                          title={t("flowStopPlaybackTitle")}
                         >
                           {t("stop")}
                         </button>
@@ -5819,9 +5852,9 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             });
                           }}
                           style={{ padding: "4px 10px", fontSize: 12, color: "#fff" }}
-                          title="1行目から最後まで、各行の編集内容を反映して連続再生"
+                          title={t("flowPlayFromBeginningTitleLong")}
                         >
-                          最初から再生
+                          {t("flowPlayFromBeginningButton")}
                         </button>
                       </div>
                       <div
@@ -5834,7 +5867,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                         }}
                       >
                         <span style={{ fontSize: 11, color: "#fff" }}>
-                          行へ移動（1〜{timelineSegments.length}）
+                          {t("flowGoToRowLabel").replace("{max}", String(timelineSegments.length))}
                         </span>
                         <input
                           value={flowJumpInputValue}
@@ -5845,9 +5878,9 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                               submitFlowJumpFromInput();
                             }
                           }}
-                          placeholder="例: 12"
+                          placeholder={t("exampleNumberPlaceholder")}
                           inputMode="numeric"
-                          aria-label="移動先の区間番号（1始まり）"
+                          aria-label={t("flowGoToRowAria")}
                           style={{
                             width: 56,
                             padding: "4px 8px",
@@ -5860,7 +5893,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                           }}
                         />
                         <button type="button" onClick={submitFlowJumpFromInput} style={{ padding: "4px 10px", fontSize: 12, color: "#fff" }}>
-                          移動
+                          {t("flowGoButton")}
                         </button>
                       </div>
                       <div
@@ -5900,9 +5933,9 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                       boxSizing: "border-box",
                                     }}
                                   >
-                                    <div>ローカル画像は再選択してください</div>
+                                    <div>{t("flowLocalImageReselect1")}</div>
                                     <div style={{ marginTop: 8, fontSize: 13, opacity: 0.95 }}>
-                                      自動保存では端末内の写真は復元できません
+                                      {t("flowLocalImageReselect2")}
                                     </div>
                                   </div>
                                 ) : (segmentImageLoadStates[fi] ?? "idle") === "error" ? (
@@ -5922,9 +5955,9 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                       boxSizing: "border-box",
                                     }}
                                   >
-                                    <div>画像を読み込めません</div>
+                                    <div>{t("flowImageError1")}</div>
                                     <div style={{ marginTop: 8, fontSize: 13, opacity: 0.95 }}>
-                                      再選択してください
+                                      {t("flowImageError2")}
                                     </div>
                                   </div>
                                 ) : (
@@ -5991,7 +6024,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                 }}
                               >
                                 <div>{typeLabel}</div>
-                                <div style={{ marginTop: 6, fontSize: 12 }}>素材なし · 歌詞のみ表示</div>
+                                <div style={{ marginTop: 6, fontSize: 12 }}>{t("flowNoVisualLyricsOnly")}</div>
                               </div>
                             )}
                             {lyricsCaption}
@@ -6000,7 +6033,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                         {renderNameAutoMaskLayer(fi)}
                       </div>
                       <div style={{ fontSize: 10, color: "#64748b", marginTop: 6, lineHeight: 1.4 }}>
-                        表示時間はタイムライン上の長さ（start～end）に合わせて切り替わります。動画は表示中の1区間だけ読み込みます。番号クリックまたは「行へ移動」で編集対象の行へ移れます。
+                        {t("flowPreviewUsageNote")}
                       </div>
                     </div>
                   );
@@ -6019,7 +6052,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                   onClick={(e) => e.stopPropagation()}
                   role="group"
                 >
-                  <span style={{ fontSize: 11, fontWeight: 600, color: "#1565c0", width: "100%" }}>区間内での再生</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#1565c0", width: "100%" }}>{t("regionPlayCaption")}</span>
                   <button
                     type="button"
                     onClick={(e) => {
@@ -6028,7 +6061,9 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                       handleSegmentPlay();
                     }}
                     style={{ padding: "6px 12px", background: segmentPlayMode === "segment" ? "#bbdefb" : undefined }}
-                    title={`${formatSecToMinSec(startSec)} ～ ${formatSecToMinSec(endSec)} の区間のみ再生、endで自動停止`}
+                    title={t("playThisSegmentAriaWithRange")
+                      .replace("{start}", formatSecToMinSec(startSec))
+                      .replace("{end}", formatSecToMinSec(endSec))}
                   >
                     {t("play")}
                   </button>
@@ -6052,9 +6087,12 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                       setTimeout(() => onSegmentPlayStart?.(), 120);
                     }}
                     style={{ padding: "6px 12px", background: segmentPlayMode === "segment" ? "#bbdefb" : undefined }}
-                    title={`${formatSecToMinSec(startSec)} ～ ${formatSecToMinSec(endSec)} の ${durationSec.toFixed(1)}秒 のみ再生して自動停止（演出込み）`}
+                    title={t("playThisSegmentDurationAria")
+                      .replace("{start}", formatSecToMinSec(startSec))
+                      .replace("{end}", formatSecToMinSec(endSec))
+                      .replace("{sec}", durationSec.toFixed(1))}
                   >
-                    この区間だけ再生
+                    {t("playThisSegmentOnly")}
                   </button>
                   <button
                     type="button"
@@ -6067,11 +6105,15 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                       setTimeout(() => onSegmentPlayStart?.(), 120);
                     }}
                     style={{ padding: "6px 12px", background: segmentPlayMode === "segmentLoop" ? "#bbdefb" : undefined }}
-                    title={`${formatSecToMinSec(startSec)} ～ ${formatSecToMinSec(endSec)} をループ`}
+                    title={t("playThisRangeLoopAria")
+                      .replace("{start}", formatSecToMinSec(startSec))
+                      .replace("{end}", formatSecToMinSec(endSec))}
                   >
-                    この範囲をループ
+                    {t("playThisRangeLoop")}
                   </button>
-                  <span style={{ fontSize: 12, color: "#666", marginLeft: 8 }}>現在: {formatSecToMinSec(currentTimeSec)}</span>
+                  <span style={{ fontSize: 12, color: "#666", marginLeft: 8 }}>
+                    {t("currentTimeShort")} {formatSecToMinSec(currentTimeSec)}
+                  </span>
                 </div>
               ) : null;
             })()}
@@ -6588,16 +6630,16 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                         <span style={{ fontSize: 10, color: "#64748b" }}>
                           {compositeEnabled
                             ? compositeMode === "mosaic"
-                              ? "モザイク"
+                              ? t("compositeStatusMosaic")
                               : compositeMode === "blackMaskWithBrand"
-                                ? "黒塗り＋gegenpress app"
+                                ? t("compositeStatusBlackMask")
                                 : "—"
-                            : "オフ"}
+                            : t("compositeStatusOff")}
                         </span>
                       </div>
                       {compositeEnabled ? (
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 6 }}>
-                          <label style={{ fontSize: 11, color: "#555" }}>パターン</label>
+                          <label style={{ fontSize: 11, color: "#555" }}>{t("compositePatternLabel")}</label>
                           <select
                             value={compositeMode === "none" ? "mosaic" : compositeMode}
                             onChange={(e) => {
@@ -6613,7 +6655,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             }}
                             style={{ padding: "3px 6px", fontSize: 11, minWidth: 200 }}
                           >
-                            {COMPOSITE_MODE_OPTIONS.map((o) => (
+                            {compositeModeOptions.map((o) => (
                               <option key={o.value} value={o.value}>{o.label}</option>
                             ))}
                           </select>
@@ -6622,7 +6664,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                       {compositeEnabled && compositeMode === "mosaic" ? (
                         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
                           <div style={{ fontSize: 10, color: "#64748b", lineHeight: 1.45 }}>
-                            プレビュー上の矩形をドラッグで移動、右下の白角でリサイズ。ピクセル化で隠します。
+                            {t("mosaicDragResizeHint")}
                           </div>
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
                             {(segmentMosaicRegions[pi] ?? []).map((reg, idx) => {
@@ -6995,8 +7037,11 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                       </button>
                       <span style={{ fontSize: 10, color: "#78716c" }}>
                         {nameMaskPreset.applyScope === "segment"
-                          ? `対象: タイムライン ${nameMaskPreset.applySegmentIndex + 1} 行目`
-                          : "対象: 全タイムライン行"}
+                          ? t("nameMaskTargetRowN").replace(
+                              "{n}",
+                              String(nameMaskPreset.applySegmentIndex + 1)
+                            )
+                          : t("nameMaskTargetAllRows")}
                       </span>
                     </div>
                     <div
@@ -7561,13 +7606,13 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                               <div style={{ fontSize: 11, color: "#64748b" }}>
                                 {compositeMode === "mosaic"
-                                  ? "プレビュー上の矩形をドラッグで移動、右下の白角でリサイズ。ピクセル化で隠します。"
+                                  ? t("mosaicDragResizeHint")
                                   : compositeMode === "blackMaskWithBrand"
-                                    ? "黒塗りの中央に「gegenpress app」。リサイズしても文字は中央です。"
+                                    ? t("blackMaskDragHint")
                                     : null}
                               </div>
                               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                                <label style={{ fontSize: 12, color: "#555" }}>パターン:</label>
+                                <label style={{ fontSize: 12, color: "#555" }}>{`${t("compositePatternLabel")}:`}</label>
                                 <select
                                   value={compositeMode === "none" ? "mosaic" : compositeMode}
                                   onChange={(e) => {
@@ -7583,7 +7628,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                   }}
                                   style={{ padding: "4px 8px", fontSize: 12, minWidth: 220 }}
                                 >
-                                  {COMPOSITE_MODE_OPTIONS.map((o) => (
+                                  {compositeModeOptions.map((o) => (
                                     <option key={o.value} value={o.value}>{o.label}</option>
                                   ))}
                                 </select>
@@ -8275,7 +8320,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                               const f = e.target.files?.[0];
                               e.target.value = "";
                               if (!f) return;
-                              const v = validateSegmentUploadVideoFile(f);
+                              const v = validateSegmentUploadVideoFile(f, t);
                               if (!v.ok) {
                                 setModalVideoUploadError(v.message);
                                 return;
@@ -8343,7 +8388,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                 type="button"
                                 onClick={() => {
                                   if (previewRowIndex == null) return;
-                                  const v = validateSegmentUploadVideoFile(modalVideoPick.file);
+                                  const v = validateSegmentUploadVideoFile(modalVideoPick.file, t);
                                   if (!v.ok) {
                                     setModalVideoUploadError(v.message);
                                     return;
@@ -8385,7 +8430,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                           }}
                           style={{ padding: "4px 12px", opacity: hasVisualMedia ? 1 : 0.45 }}
                         >
-                          素材を外す（画像・動画）
+                          {t("clearSegmentMediaButton")}
                         </button>
                       </div>
                     </div>
@@ -8394,12 +8439,20 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
               );
             })()}
             <div style={{ marginBottom: 12 }}>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4, color: "#555" }}>歌詞（この区間の画面上に表示）</label>
-              <textarea value={segmentTexts[previewRowIndex!] ?? ""} onChange={(e) => setSegmentText(previewRowIndex!, e.target.value)} placeholder="歌詞を入力（フレーズキューから反映も可）" rows={2} style={{ width: "100%", boxSizing: "border-box", padding: 8, fontSize: 14, borderRadius: 4, border: "1px solid #ddd" }} />
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4, color: "#555" }}>
+                {t("segmentLyricsScreenTitle")}
+              </label>
+              <textarea
+                value={segmentTexts[previewRowIndex!] ?? ""}
+                onChange={(e) => setSegmentText(previewRowIndex!, e.target.value)}
+                placeholder={t("lyricsTextareaPlaceholderModal")}
+                rows={2}
+                style={{ width: "100%", boxSizing: "border-box", padding: 8, fontSize: 14, borderRadius: 4, border: "1px solid #ddd" }}
+              />
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 12 }}>
-              <span style={{ fontSize: 12, color: "#555" }}>表示:</span>
-              <span style={{ fontSize: 11, color: "#888" }}>歌詞はドラッグで移動できます</span>
+              <span style={{ fontSize: 12, color: "#555" }}>{t("lyricsLayoutDisplay")}</span>
+              <span style={{ fontSize: 11, color: "#888" }}>{t("lyricsDragHint")}</span>
               <button
                 type="button"
                 onClick={() => {
@@ -8485,14 +8538,32 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                   />
                 </label>
               )}
-              <button type="button" onClick={() => { if (phraseQueue.length === 0) return; setOpenPhraseQueueInModal(previewRowIndex!); }} disabled={phraseQueue.length === 0} title="この区間の横にフレーズキューを表示（スクロールなし）" style={{ padding: "4px 10px", fontSize: 12 }}>このフレーズをフレーズキューで開く</button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (phraseQueue.length === 0) return;
+                  setOpenPhraseQueueInModal(previewRowIndex!);
+                }}
+                disabled={phraseQueue.length === 0}
+                title={t("openPhraseQueueNearSegment")}
+                style={{ padding: "4px 10px", fontSize: 12 }}
+              >
+                {t("openPhraseQueueNearSegment")}
+              </button>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 12 }}>
-              <label style={{ fontSize: 12, color: "#555" }}>演出(transition):</label>
+              <label style={{ fontSize: 12, color: "#555" }}>{t("transitionLabelShort")}</label>
               <select value={segmentAnims[previewRowIndex!] ?? "none"} onChange={(e) => setSegmentAnim(previewRowIndex!, e.target.value)} style={{ padding: "4px 8px", minWidth: 100 }}>
                 {ANIM_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
               </select>
-              <button type="button" onClick={() => setPreviewAnimKey((k) => k + 1)} style={{ padding: "4px 10px", fontSize: 12 }} title="画像の演出アニメーションを再再生">演出を試す</button>
+              <button
+                type="button"
+                onClick={() => setPreviewAnimKey((k) => k + 1)}
+                style={{ padding: "4px 10px", fontSize: 12 }}
+                title={t("tryTransitionAnimation")}
+              >
+                {t("tryTransitionAnimation")}
+              </button>
             </div>
             {(() => {
               const timelineApplyIndex = timelineRowForEditingPhrase ?? previewRowIndex!;
@@ -8509,7 +8580,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
               };
               return (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, color: "#555", marginRight: 4 }}>時間:</span>
+                  <span style={{ fontSize: 12, color: "#555", marginRight: 4 }}>{t("segmentEditorTimeLabel")}</span>
                   <input type="text" value={previewTimeStartStr} onChange={(e) => setPreviewTimeStartStr(e.target.value)} onBlur={applyPreviewTimeInput} onKeyDown={(e) => { if (e.key === "Enter") applyPreviewTimeInput(); }} placeholder="0:00.000" style={{ width: 82, padding: "2px 4px", fontSize: 12 }} title="開始（分:秒または秒）。反映で以下連動" />
                   <span style={{ color: "#999" }}>～</span>
                   <input type="text" value={previewTimeEndStr} onChange={(e) => setPreviewTimeEndStr(e.target.value)} onBlur={applyPreviewTimeInput} onKeyDown={(e) => { if (e.key === "Enter") applyPreviewTimeInput(); }} placeholder="0:00.000" style={{ width: 82, padding: "2px 4px", fontSize: 12 }} title="終了。反映で以下連動" />
@@ -8518,9 +8589,27 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                   <button type="button" onClick={() => applyCascadedSegmentTimes(timelineApplyIndex, startSec, endSec + TIME_ADJUST_DELTA)} title="終了を0.5秒遅く（以下連動）" style={{ padding: "2px 8px", fontSize: 11 }}>end +0.5s</button>
                   <span style={{ width: 8, borderLeft: "1px solid #ddd", marginLeft: 4, alignSelf: "stretch" }} aria-hidden />
                   <div className="segment-footer">
-                    <button type="button" disabled={previewRowIndex! <= 0} onClick={() => handlePreviewNavigate(-1)} title="前の区間へ" style={{ padding: "4px 12px", opacity: previewRowIndex! <= 0 ? 0.45 : 1 }}>前へ</button>
-                    <button type="button" disabled={previewRowIndex! >= timelineSegments.length - 1} onClick={() => handlePreviewNavigate(1)} title="次の区間へ" style={{ padding: "4px 12px", opacity: previewRowIndex! >= timelineSegments.length - 1 ? 0.45 : 1 }}>次へ</button>
-                    <button type="button" onClick={() => setPreviewRowIndex(null)} style={{ padding: "4px 12px" }}>閉じる</button>
+                    <button
+                      type="button"
+                      disabled={previewRowIndex! <= 0}
+                      onClick={() => handlePreviewNavigate(-1)}
+                      title={t("segmentEditorNavPrevTitle")}
+                      style={{ padding: "4px 12px", opacity: previewRowIndex! <= 0 ? 0.45 : 1 }}
+                    >
+                      {t("prev")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={previewRowIndex! >= timelineSegments.length - 1}
+                      onClick={() => handlePreviewNavigate(1)}
+                      title={t("segmentEditorNavNextTitle")}
+                      style={{ padding: "4px 12px", opacity: previewRowIndex! >= timelineSegments.length - 1 ? 0.45 : 1 }}
+                    >
+                      {t("next")}
+                    </button>
+                    <button type="button" onClick={() => setPreviewRowIndex(null)} style={{ padding: "4px 12px" }}>
+                      {t("close")}
+                    </button>
                     <span className="segment-index">
                       #{previewRowIndex! + 1} / {timelineSegments.length}
                     </span>
@@ -8618,10 +8707,10 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                           ev.stopPropagation();
                         }}
                         onClick={(ev) => handlePhraseRowClipboardCopy(item.id, ev)}
-                        title="この行を内部コピー（再生しない）"
+                        title={t("modalPhraseColumnCopyTitle")}
                         style={{ padding: "0 4px", fontSize: 10, flexShrink: 0, lineHeight: 1.2 }}
                       >
-                        行コピー
+                        {t("phraseCopyRow")}
                       </button>
                     </li>
                     );
@@ -8724,15 +8813,21 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
               </button>
             </div>
             <div style={{ fontSize: 12, color: "#555", marginTop: 6 }}>
-              {manualRecordingState === "idle" ? (
-                <>今は<strong>声待ち</strong> — 「声開始」で区間の開始を記録。声停止～次の声開始は無音区間としてタイムラインに反映されます。</>
-              ) : (
-                <>今は<strong>声区間記録中</strong>（開始: {formatSecToMinSec(pendingVoiceStart ?? 0)}）— 「声停止」で区間を確定。</>
-              )}
+              {manualRecordingState === "idle"
+                ? t("voiceIdleHelp")
+                : t("voiceRecordingHelp").replace(
+                    "{time}",
+                    formatSecToMinSec(pendingVoiceStart ?? 0)
+                  )}
             </div>
             {manualVoiceSegments.length > 0 && (
               <div style={{ marginTop: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>作成済み音声区間（{manualVoiceSegments.length} 件）</div>
+                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                  {t("voiceSegmentsCreatedHeading").replace(
+                    "{count}",
+                    String(manualVoiceSegments.length)
+                  )}
+                </div>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, maxHeight: 120, overflowY: "auto", fontSize: 12 }}>
                   {manualVoiceSegments.map((seg, i) => (
                     <li key={i} style={{ padding: "2px 0", borderBottom: "1px solid #e0e0e0" }}>
@@ -8746,7 +8841,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
 
           {/* 右: 簡易タイムライン */}
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>簡易タイムライン（クリックでシーク・区間クリックで選択）</div>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{t("simpleTimelineHeading")}</div>
             {videoDuration != null && videoDuration > 0 ? (
               <div
                 role="presentation"
@@ -8784,7 +8879,15 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                       key={seg.id}
                       role="button"
                       tabIndex={0}
-                      title={`${isBranding ? "Branding" : seg.type === "voice" ? "声" : seg.type === "interlude" ? "間奏" : "無音"} ${formatSecToMinSec(seg.startSec)} ～ ${formatSecToMinSec(seg.endSec)}`}
+                      title={`${
+                        isBranding
+                          ? t("segmentTypeBrand")
+                          : seg.type === "voice"
+                            ? t("timelineRowTypeVoice")
+                            : seg.type === "interlude"
+                              ? t("timelineRowTypeInterlude")
+                              : t("timelineRowTypeSilence")
+                      } ${formatSecToMinSec(seg.startSec)} ～ ${formatSecToMinSec(seg.endSec)}`}
                       style={{
                         position: "absolute",
                         left: `${left}%`,
@@ -8819,7 +8922,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
               </div>
             ) : (
               <div style={{ height: 48, background: "#eee", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#666" }}>
-                動画の長さを取得中
+                {t("waitVideoDurationMessage")}
               </div>
             )}
           </div>
@@ -9108,16 +9211,23 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
           )}
           <span style={{ fontSize: 12, color: "#666" }}>
             {timelineSegments.length > 0
-              ? `適用先（青枠の行）: #${(() => {
-                  const pi = editingPhraseId ? phraseQueue.findIndex((p) => p.id === editingPhraseId) : -1;
-                  return pi >= 0 ? pi + 1 : 1;
-                })()}（クリックで割当→次行へ）`
-              : "（タイムライン生成後に割当可）"}
+              ? t("themeApplyTargetLine").replace(
+                  "{n}",
+                  String(
+                    (() => {
+                      const pi = editingPhraseId
+                        ? phraseQueue.findIndex((p) => p.id === editingPhraseId)
+                        : -1;
+                      return pi >= 0 ? pi + 1 : 1;
+                    })()
+                  )
+                )
+              : t("themeApplyAfterTimeline")}
           </span>
         </div>
         {themeImageResults.length > 0 && (
           <div>
-            <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>↓ クリックで青枠の行に割当</div>
+            <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>{t("themeAssignClickHint")}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {themeImageResults.map((img) => (
                 <button
@@ -9159,38 +9269,42 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
         <div style={{ marginTop: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6, flexWrap: "wrap" }}>
             <span style={{ fontWeight: 600 }}>
-              タイムライン（{timelineSegments.length} 区間 / 声 {timelineSegments.filter((s) => s.type === "voice").length} + 無音 {timelineSegments.filter((s) => s.type === "silence").length} + 間奏 {timelineSegments.filter((s) => s.type === "interlude").length}）
+              {t("timelineStatsLine")
+                .replace("{total}", String(timelineSegments.length))
+                .replace("{voice}", String(timelineSegments.filter((s) => s.type === "voice").length))
+                .replace("{silence}", String(timelineSegments.filter((s) => s.type === "silence").length))
+                .replace("{interlude}", String(timelineSegments.filter((s) => s.type === "interlude").length))}
             </span>
-            <span style={{ fontSize: 12, color: "#666" }}>
-              緑=再生中 / 青枠=選択中 / 行クリックで選択 / フレーズの流し込み・画像の細かい操作は<strong>区間編集を開く</strong>から / 一覧は時間・歌詞の確認と追加・削除に絞っています
-            </span>
+            <span style={{ fontSize: 12, color: "#666" }}>{t("timelineUsageLegend")}</span>
             <button
               type="button"
               onClick={() => onBulkAssignToLyrics(manualVoiceSegments)}
               disabled={lyricLineCount === 0}
-              title={lyricLineCount === 0 ? "歌詞行を先に作成してください" : "全歌詞行に声区間を一括割当"}
+              title={
+                lyricLineCount === 0 ? t("bulkAssignNeedLyricsTitle") : t("bulkAssignTitle")
+              }
             >
-              歌詞を区間に一括割当
+              {t("bulkAssignLyricsButton")}
             </button>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap", fontSize: 13 }}>
-            <span style={{ color: "#666" }}>間奏:</span>
+            <span style={{ color: "#666" }}>{t("interludeLabel")}</span>
             <input
               type="text"
-              placeholder="開始 例: 1:40.000"
+              placeholder={t("interludeStartPlaceholder")}
               value={interludeStartInput}
               onChange={(e) => setInterludeStartInput(e.target.value)}
               style={{ width: 100, padding: "4px 6px" }}
-              title="開始（分:秒 または 秒）"
+              title={t("interludeStartTitle")}
             />
             <span style={{ color: "#999" }}>～</span>
             <input
               type="text"
-              placeholder="終了 例: 1:45.000"
+              placeholder={t("interludeEndPlaceholder")}
               value={interludeEndInput}
               onChange={(e) => setInterludeEndInput(e.target.value)}
               style={{ width: 100, padding: "4px 6px" }}
-              title="終了（分:秒 または 秒）"
+              title={t("interludeEndTitle")}
             />
             <button
               type="button"
@@ -9208,18 +9322,18 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                 parseTimeToSec(interludeEndInput) == null ||
                 (parseTimeToSec(interludeStartInput) ?? 0) >= (parseTimeToSec(interludeEndInput) ?? 0)
               }
-              title="開始・終了を指定して間奏区間を追加（タイムラインに開始時刻でマージ表示）"
+              title={t("interludeAddTitle")}
             >
-              間奏を追加
+              {t("interludeAdd")}
             </button>
             {manualInterludes.length > 0 && (
               <button
                 type="button"
                 onClick={() => setManualInterludes([])}
-                title="追加した間奏をすべて削除"
+                title={t("interludeClearTitle")}
                 style={{ fontSize: 12, color: "#666" }}
               >
-                間奏をクリア
+                {t("interludeClear")}
               </button>
             )}
           </div>
@@ -9274,7 +9388,13 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
               >
                 <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
                   <span style={{ minWidth: 28, fontSize: 11, fontWeight: 600, color: seg.isBranding ? "#7c3aed" : seg.type === "silence" ? "#666" : seg.type === "interlude" ? "#b4531a" : "#1565c0" }}>
-                    {seg.isBranding ? "Brand" : seg.type === "voice" ? "声" : seg.type === "interlude" ? "間奏" : "無音"}
+                    {seg.isBranding
+                      ? t("segmentTypeBrand")
+                      : seg.type === "voice"
+                        ? t("timelineRowTypeVoice")
+                        : seg.type === "interlude"
+                          ? t("timelineRowTypeInterlude")
+                          : t("timelineRowTypeSilence")}
                   </span>
                   <span style={{ fontSize: 11, fontWeight: 700, color: "#37474f" }}>#{i + 1}</span>
                   <span
@@ -9288,13 +9408,13 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                       borderRadius: 6,
                       border: "1px solid #c5cae9",
                     }}
-                    title="この行で扱う時間区間（開始〜終了）。区間編集を開くとこの範囲だけが再生対象になります。"
+                    title={t("segmentTimeRangeTitle")}
                   >
-                    区間編集: {seg.startSec.toFixed(3)}s → {seg.endSec.toFixed(3)}s
+                    {t("segmentEditRangeBanner")} {seg.startSec.toFixed(3)}s → {seg.endSec.toFixed(3)}s
                   </span>
                 </div>
                 <p style={{ margin: "2px 0 0", fontSize: 11, color: "#455a64", lineHeight: 1.45 }}>
-                  時間・歌詞の細かい操作は「<strong>区間編集を開く</strong>」から。ここでは流れの確認と追加・削除に絞っています。
+                  {t("segmentEditFromModalHint")}
                 </p>
                 <div
                   style={{
@@ -9337,7 +9457,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                     }}
                     placeholder="0:00.000"
                     style={{ width: 88, padding: "2px 4px", fontSize: 12 }}
-                    title="開始（分:秒または秒）。区間編集モーダル内でも変更できます。"
+                    title={t("segmentTimeStartFieldTitle")}
                   />
                   <span style={{ color: "#999" }}>～</span>
                   <input
@@ -9370,7 +9490,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                     }}
                     placeholder="0:00.000"
                     style={{ width: 88, padding: "2px 4px", fontSize: 12 }}
-                    title="終了（分:秒または秒）。手入力はそのまま採用。変更すると下の行が5秒刻みで連鎖更新"
+                    title={t("segmentTimeEndFieldTitleLegend")}
                   />
                 </>
               ) : (
@@ -9392,28 +9512,30 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                     type="button"
                     onClick={() => handleOpenIntervalEdit(i)}
                     disabled={!onSeekToSec || !onPlay}
-                    title={`この区間（${seg.startSec.toFixed(3)}s ～ ${seg.endSec.toFixed(3)}s）を編集・確認する画面を開きます。再生はこの範囲に限定されます（フル再生プレイヤーとは別）。`}
+                    title={t("openSegmentEditorRowTitle")
+                      .replace("{start}", seg.startSec.toFixed(3))
+                      .replace("{end}", seg.endSec.toFixed(3))}
                     style={{ fontWeight: 600, background: "#e3f2fd", border: "1px solid #90caf9", borderRadius: 4, padding: "6px 12px" }}
                   >
-                    区間編集を開く
+                    {t("openSegment")}
                   </button>
                   <button
                     type="button"
                     onClick={() => handleAddSegmentAfter(i)}
                     disabled={Boolean(seg.isBranding)}
-                    title="この区間の終了時刻から約2秒の新規区間を追加"
+                    title={t("addAfterThisSegmentTitle")}
                     style={{ padding: "6px 12px", borderRadius: 4, border: "1px solid #bdbdbd", background: "#fff" }}
                   >
-                    後ろに追加
+                    {t("addAfter")}
                   </button>
                   {!seg.isBranding ? (
                     <button
                       type="button"
                       onClick={() => handleDeleteTimelineSegment(i)}
-                      title="この区間を削除"
+                      title={t("removeThisSegmentTitle")}
                       style={{ padding: "6px 12px", borderRadius: 4, border: "1px solid #e57373", background: "#fff", color: "#b71c1c" }}
                     >
-                      削除
+                      {t("delete")}
                     </button>
                   ) : null}
                 </div>
@@ -9448,7 +9570,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                     if (!Number.isFinite(draggedIndex)) return;
                     handleLyricDrop(i, text, draggedIndex);
                   }}
-                  placeholder="歌詞（複数行可） — フレーズの追記は区間編集を開くから"
+                  placeholder={t("segmentLyricsPlaceholderShort")}
                   rows={3}
                   style={{ width: "100%", maxWidth: "100%", boxSizing: "border-box", padding: 8, marginTop: 6, resize: "vertical", fontFamily: "inherit" }}
                   disabled={Boolean(seg.isBranding)}
@@ -9465,10 +9587,10 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                     const pi = phraseQueue.findIndex((p) => p.id === editingPhraseId);
                     return pi < 0 || pi >= phraseQueue.length - 1;
                   })()}
-                  title="選択を次の枠へ（歌詞は変更しない）"
+                  title={t("goToNextPhraseSlotTitle")}
                   style={{ marginTop: 4, padding: "4px 10px", fontSize: 12 }}
                 >
-                  次の枠へ
+                  {t("goToNextPhraseSlotButton")}
                 </button>
                 <input
                   ref={(el) => { if (el) fileInputRefs.current.set(i, el); }}
@@ -9492,10 +9614,10 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                 <button
                   type="button"
                   onClick={() => fileInputRefs.current.get(i)?.click()}
-                  title="この行にファイルから画像を直接割当"
+                  title={t("chooseImageFileThisRowTitle")}
                   style={{ marginTop: 4, padding: "4px 10px", fontSize: 12 }}
                 >
-                  この行に画像を選ぶ
+                  {t("chooseImageFileThisRowButton")}
                 </button>
                 {(segmentImageUrls[i] ||
                   segmentVideoUrls[i] ||
@@ -9509,7 +9631,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                         e.stopPropagation();
                         handleOpenIntervalPreview(i);
                       }}
-                      title="この区間の編集・確認画面を開く（素材+歌詞。音声はこの行の開始〜終了の範囲のみ）"
+                      title={t("openSegmentEditorPreviewTitle")}
                       style={{ padding: 0, border: "none", background: "none", cursor: "pointer", borderRadius: 4 }}
                     >
                       {segmentVideoUrls[i] ? (
@@ -9528,7 +9650,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             border: "1px solid #334",
                             boxSizing: "border-box",
                           }}
-                          title="動画（一覧では再生・読み込みしません）"
+                          title={t("rowVideoListNoPlaybackHint")}
                         >
                           MOV
                         </span>
@@ -9536,7 +9658,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                         if (segmentImageSelections[i]?.localImageNeedsReselect && !segmentVideoUrls[i]) {
                           return (
                             <span
-                              title="自動保存から復元したローカル画像は、端末上のファイルとして再選択してください。"
+                              title={t("localImageTapToReselectHint")}
                               style={{
                                 width: 40,
                                 minHeight: 30,
@@ -9558,8 +9680,8 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                 wordBreak: "break-all",
                               }}
                             >
-                              <span>ローカル画像</span>
-                              <span style={{ marginTop: 1, fontWeight: 600 }}>再選択</span>
+                              <span>{t("localImageBadgeReselect")}</span>
+                              <span style={{ marginTop: 1, fontWeight: 600 }}>{t("localImageBadgeTapLine2")}</span>
                             </span>
                           );
                         }
@@ -9576,7 +9698,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                         if (loadSt === "error") {
                           return (
                             <span
-                              title="画像を読み込めません。再選択してください。"
+                              title={t("imageCouldNotLoadShort")}
                               style={{
                                 width: 40,
                                 minHeight: 30,
@@ -9598,8 +9720,8 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                 wordBreak: "break-all",
                               }}
                             >
-                              <span>画像を読み込めません</span>
-                              <span style={{ marginTop: 1, fontWeight: 600 }}>再選択してください</span>
+                              <span>{t("imageCouldNotLoadShort")}</span>
+                              <span style={{ marginTop: 1, fontWeight: 600 }}>{t("imageReloadHintShort")}</span>
                             </span>
                           );
                         }
@@ -9617,8 +9739,8 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                         );
                       })()}
                     </button>
-                    <button type="button" onClick={() => clearSegmentVisualMedia(i)} title="素材解除（画像・動画）">
-                      Clear
+                    <button type="button" onClick={() => clearSegmentVisualMedia(i)} title={t("clearSegmentMediaButton")}>
+                      {t("clearVisualMediaShort")}
                     </button>
                   </>
                 )}
@@ -9627,21 +9749,21 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                     type="button"
                     onClick={() => handleRegenerateRow(i)}
                     disabled={autoAssignLoading}
-                    title="この行の画像だけ再抽選（歌詞＋トーンで検索）"
+                    title={t("replaceRowImageSearchTitle")}
                     style={{ fontSize: 11 }}
                   >
-                    この行だけ再抽選
+                    {t("replaceRowImageSearchButton")}
                   </button>
                 ) : null}
                 {segmentSearchTerms[i] && (
                   <span style={{ fontSize: 10, color: "#888", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={segmentSearchTerms[i]}>
-                    検索: {segmentSearchTerms[i]}
+                    {t("searchTermsForSegment")} {segmentSearchTerms[i]}
                   </span>
                 )}
                 <select
                   value={segmentAnims[i] ?? "none"}
                   onChange={(e) => setSegmentAnim(i, e.target.value)}
-                  title="アニメーション"
+                  title={t("animationPickerTitle")}
                   style={{ minWidth: 90 }}
                 >
                   {ANIM_OPTIONS.map((o) => (
@@ -9669,7 +9791,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
               touchAction: "none",
               minWidth: 0,
             }}
-            title="ドラッグでフレーズ列の幅を変更"
+            title={t("phraseQueueWidthDragHint")}
           />
         ) : null}
 
@@ -9706,11 +9828,11 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
             flexShrink: 0,
           }}
         >
-          <span style={{ flex: 1, minWidth: 0, fontSize: 14 }}>歌詞フレーズキュー</span>
+          <span style={{ flex: 1, minWidth: 0, fontSize: 14 }}>{t("phraseQueuePanelTitle")}</span>
           <button
             type="button"
             onClick={() => setPhraseQueuePanel((p) => ({ ...p, minimized: !p.minimized }))}
-            title={phraseQueuePanel.minimized ? "展開" : "最小化"}
+            title={phraseQueuePanel.minimized ? t("phraseQueuePanelExpand") : t("phraseQueuePanelMinimize")}
             style={{ padding: "2px 8px", fontSize: 12, flexShrink: 0 }}
           >
             {phraseQueuePanel.minimized ? "▲" : "▼"}
@@ -9718,10 +9840,10 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
           <button
             type="button"
             onClick={handlePhraseQueueResetPosition}
-            title="列幅をデフォルトに戻す"
+            title={t("phraseQueueColumnWidthResetTitle")}
             style={{ padding: "2px 8px", fontSize: 12, flexShrink: 0 }}
           >
-            幅リセット
+            {t("phraseQueueColumnWidthReset")}
           </button>
         </div>
         {!phraseQueuePanel.minimized && (
@@ -9737,24 +9859,28 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
             }}
           >
           <div style={{ marginBottom: 8, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", fontSize: 13 }}>
-            <span style={{ color: "#666" }}>曲調:</span>
+            <span style={{ color: "#666" }}>{t("songStyleLabel")}</span>
             <select
               value={songStyle}
               onChange={(e) => setSongStyle(e.target.value as SongStyle)}
               style={{ padding: "4px 8px", minWidth: 140 }}
             >
               {SONG_STYLES.map((s) => (
-                <option key={s} value={s}>{getSongStyleLabel(s)}</option>
+                <option key={s} value={s}>
+                  {t(SONG_STYLE_KEYS[s])}
+                </option>
               ))}
             </select>
-            <span style={{ color: "#666", marginLeft: 4 }}>表示テンポ:</span>
+            <span style={{ color: "#666", marginLeft: 4 }}>{t("displayTempoLabel")}</span>
             <select
               value={displayTempo}
               onChange={(e) => setDisplayTempo(e.target.value as DisplayTempo)}
               style={{ padding: "4px 8px", minWidth: 120 }}
             >
-              {DISPLAY_TEMPOS.map((t) => (
-                <option key={t} value={t}>{getDisplayTempoLabel(t)}</option>
+              {DISPLAY_TEMPOS.map((tempo) => (
+                <option key={tempo} value={tempo}>
+                  {t(DISPLAY_TEMPO_KEYS[tempo])}
+                </option>
               ))}
             </select>
             <button
@@ -9765,12 +9891,15 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                   ? phraseQueue.map((p) => p.text).join("\n").trim()
                   : lyricsFullText.trim())
               }
-              title={`現在の曲調で約${getPresetParams(songStyle, displayTempo).secondsPerScreen}秒ごとに画面切替になるようフレーズを自動生成（後から分割・結合で調整可）`}
+              title={t("autoGeneratePhrasesTooltip").replace(
+                "{sec}",
+                String(getPresetNumericParams(songStyle, displayTempo).secondsPerScreen)
+              )}
               style={{ padding: "4px 10px", fontSize: 13, fontWeight: 600 }}
             >
-              自動生成
+              {t("autoGenerateButton")}
             </button>
-            <span style={{ fontSize: 11, color: "#888" }}>{getPresetParams(songStyle, displayTempo).description}</span>
+            <span style={{ fontSize: 11, color: "#888" }}>{phrasePresetDescription}</span>
           </div>
           <textarea
             value={editingPhrase?.text ?? ""}
@@ -9796,8 +9925,8 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
             rows={3}
             placeholder={
               phraseQueue.length === 0
-                ? "フレーズ取り込み後、タイムラインで区間を選ぶとここでその行のフレーズを編集できます"
-                : "編集中のタイムライン区間に対応するフレーズを編集（全文はページ上部の歌詞欄）"
+                ? t("phraseEditPlaceholderEmpty")
+                : t("phraseEditPlaceholderActive")
             }
             style={{ width: "100%", marginBottom: 8, fontFamily: "inherit", boxSizing: "border-box" }}
           />
@@ -9806,29 +9935,32 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
               type="button"
               onClick={handleFullTextApply}
               disabled={!lyricsFullText.trim() || themeSearchLoading}
-              title="フレーズキュー・キーワード解析・関連処理を一括更新（トップの画像候補パネル非表示時も内部処理は従来どおり）"
+              title={t("generateFullTextPanelTitle")}
               style={{ padding: "6px 14px", fontWeight: 600 }}
             >
               {themeSearchLoading ? t("generating") : t("generateFullTextInPanel")}
             </button>
             <button type="button" onClick={handlePhraseify} disabled={!lyricsFullText.trim()} style={{ padding: "6px 12px" }}>
-              フレーズ化のみ
+              {t("phraseifyOnlyButton")}
             </button>
           </div>
           {phraseQueue.length > 0 ? (
             <div style={{ flex: 1, minHeight: 0, minWidth: 0, display: "flex", flexDirection: "column" }}>
               <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 6, flexShrink: 0 }}>
                 <span style={{ fontSize: 13, color: "#555" }}>
-                  編集中:{" "}
-                  <strong>
-                    {editingPhraseId
-                      ? (() => {
-                          const pi = phraseQueue.findIndex((p) => p.id === editingPhraseId);
-                          return pi >= 0 ? pi + 1 : "—";
-                        })()
-                      : "—"}
-                  </strong>{" "}
-                  / {phraseQueue.length}（行クリックで選択のみ・ダブルクリックで歌詞枠へ挿入）
+                  {t("phraseEditingProgress")
+                    .replace(
+                      "{index}",
+                      String(
+                        editingPhraseId
+                          ? (() => {
+                              const pi = phraseQueue.findIndex((p) => p.id === editingPhraseId);
+                              return pi >= 0 ? pi + 1 : "—";
+                            })()
+                          : "—"
+                      )
+                    )
+                    .replace("{total}", String(phraseQueue.length))}
                 </span>
                 <button
                   type="button"
@@ -9838,10 +9970,10 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                   }}
                   onClick={(e) => handlePhraseClipboardCopy(e)}
                   disabled={editingPhraseId == null}
-                  title="選択中フレーズを内部バッファへ（再生・シークは起こさない）。2ページ目以降は「行コピー」も利用可"
+                  title={t("phraseClipboardCopyTitle")}
                   style={{ padding: "4px 10px", fontSize: 12 }}
                 >
-                  フレーズコピー
+                  {t("phraseClipboardCopy")}
                 </button>
                 <button
                   type="button"
@@ -9851,14 +9983,14 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                   }}
                   onClick={(e) => handlePhraseClipboardPaste(e)}
                   disabled={editingPhraseId == null || !phraseClipReady}
-                  title="内部バッファを選択中フレーズへ貼り付け（先にフレーズコピー）"
+                  title={t("phraseClipboardPasteTitle")}
                   style={{ padding: "4px 10px", fontSize: 12 }}
                 >
-                  フレーズ貼付
+                  {t("phraseClipboardPaste")}
                 </button>
                 {phraseClipReady ? (
                   <span style={{ fontSize: 11, color: "#2e7d32", maxWidth: 280 }}>
-                    コピー済み: {phraseClipSummary}
+                    {t("phraseCopiedToBuffer")} {phraseClipSummary}
                   </span>
                 ) : null}
               </div>
@@ -9906,7 +10038,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
             </div>
           ) : (
             <p style={{ fontSize: 13, color: "#888" }}>
-              歌詞全文はページ上部の入力欄で。取り込み後にフレーズがここに並びます。
+              {t("phraseQueueFullLyricsHint")}
             </p>
           )}
           </div>

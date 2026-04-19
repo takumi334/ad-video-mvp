@@ -19,9 +19,12 @@ export type PresetParams = {
   maxSwitchesPer5Sec: number;
   /** 自動生成: 1画面あたりの目安表示秒数（約○秒で画面切替） */
   secondsPerScreen: number;
-  /** 説明（UI表示用） */
+  /** 説明（UI表示用・任意。i18n では別途組み立てる） */
   description: string;
 };
+
+/** phraseify / auto-generate 等が参照する数値のみ（文言なし） */
+export type PresetNumericParams = Omit<PresetParams, "description">;
 
 const STYLE_BASE: Record<SongStyle, Omit<PresetParams, "description">> = {
   /** しっとり: 長め表示、切替少なめ */
@@ -75,24 +78,35 @@ const TEMPO_LABELS: Record<DisplayTempo, string> = {
 };
 
 /**
- * 曲調と表示テンポからプリセットパラメータを取得する。
- * 後でMLやヒューリスティックに差し替えしやすいように関数分離。
+ * 曲調と表示テンポから数値プリセットのみ取得（フレーズ化・自動生成の計算用）。
  */
-export function getPresetParams(style: SongStyle, tempo: DisplayTempo): PresetParams {
+export function getPresetNumericParams(style: SongStyle, tempo: DisplayTempo): PresetNumericParams {
   const base = STYLE_BASE[style];
   const offset = TEMPO_OFFSET[tempo];
   const mergeShortBelow = Math.max(0, base.mergeShortBelow + offset.merge);
   const splitLongAbove = Math.max(mergeShortBelow + 5, base.splitLongAbove + offset.split);
-  const desc = [
-    STYLE_LABELS[style],
-    TEMPO_LABELS[tempo],
-    `（結合≦${mergeShortBelow}文字・分割>${splitLongAbove}文字・約${base.secondsPerScreen}秒/画面）`,
-  ].join(" ");
   return {
     mergeShortBelow,
     splitLongAbove,
     maxSwitchesPer5Sec: base.maxSwitchesPer5Sec,
     secondsPerScreen: base.secondsPerScreen,
+  };
+}
+
+/**
+ * 曲調と表示テンポからプリセットパラメータを取得する。
+ * description は従来互換の日本語連結（ログ等）。画面表示は i18n で組み立てること。
+ */
+export function getPresetParams(style: SongStyle, tempo: DisplayTempo): PresetParams {
+  const numeric = getPresetNumericParams(style, tempo);
+  const base = STYLE_BASE[style];
+  const desc = [
+    STYLE_LABELS[style],
+    TEMPO_LABELS[tempo],
+    `（結合≦${numeric.mergeShortBelow}文字・分割>${numeric.splitLongAbove}文字・約${base.secondsPerScreen}秒/画面）`,
+  ].join(" ");
+  return {
+    ...numeric,
     description: desc,
   };
 }

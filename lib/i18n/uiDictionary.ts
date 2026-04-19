@@ -1,4 +1,5 @@
 import type { SegmentScreenFilter } from "@/lib/segmentVisualStyle";
+import { editScreenStringsByLocale } from "./editScreenDictionary";
 import type { UiLocale } from "./uiLocale";
 import { DEFAULT_UI_LOCALE } from "./uiLocale";
 
@@ -177,6 +178,96 @@ const enStrings = {
   currentTimeShort: "Now:",
   assignLyricsToSegmentsShort: "Assign lyrics to segments",
   voiceSectionsAutoHeading: "Auto",
+  phraseQueueRowTitle:
+    "Click: select the matching timeline segment to edit / Double-click: insert into the segment lyrics",
+  phraseQueueMoveUpTitle: "Move up",
+  phraseQueueMoveDownTitle: "Move down",
+  phraseSplit: "Split",
+  phraseJoin: "Join",
+  phraseCopyRowTitle:
+    "Copy this row internally (no playback; less likely to trigger the play bar above)",
+  phraseCopyRow: "Copy row",
+  songStyle_shittori: "Calm / slow",
+  songStyle_standard: "Standard",
+  songStyle_tempo: "Up-tempo",
+  songStyle_rap: "Rap / fast",
+  displayTempo_readability: "Readability first",
+  displayTempo_balance: "Balanced",
+  displayTempo_rhythm: "Groove first",
+  songStyleLabel: "Song style:",
+  displayTempoLabel: "Display tempo:",
+  presetDescriptionTech:
+    " (merge≤{merge} chars · split>{split} chars · ~{sec}s/screen)",
+  autoGeneratePhrasesTooltip:
+    "Auto-generate phrases for ~{sec}s per screen at the current song style. Adjust later with Split/Join.",
+  phraseifyOnlyButton: "Phraseify only",
+  phraseQueuePanelExpand: "Expand",
+  phraseQueuePanelMinimize: "Minimize",
+  phraseQueueColumnWidthReset: "Reset width",
+  phraseQueueColumnWidthResetTitle: "Reset column width to default",
+  phraseEditPlaceholderEmpty:
+    "After importing phrases, select a timeline segment to edit its phrase here",
+  phraseEditPlaceholderActive:
+    "Edit the phrase for the selected timeline segment (full lyrics stay at the top)",
+  phraseEditingProgress:
+    "Editing: {index} / {total} — click a row to select; double-click inserts into the lyrics box",
+  phraseClipboardCopy: "Copy phrase",
+  phraseClipboardPaste: "Paste phrase",
+  phraseClipboardCopyTitle:
+    "Copy selected phrase to internal buffer (no playback/seek). On page 2+, you can also use “Copy row”.",
+  phraseClipboardPasteTitle: "Paste internal buffer into selected phrase (copy phrase first)",
+  phraseCopiedToBuffer: "Copied:",
+  generateFullTextPanelTitle:
+    "Refresh phrase queue, keyword parse, and related steps (same internals when the top image panel is hidden)",
+  timelineStatsLine:
+    "Timeline ({total} segments · voice {voice} + silence {silence} + interlude {interlude})",
+  timelineRowTypeVoice: "Voice",
+  timelineRowTypeSilence: "Silence",
+  timelineRowTypeInterlude: "Interlude",
+  interludeLabel: "Interlude:",
+  interludeAdd: "Add interlude",
+  interludeClear: "Clear interludes",
+  interludeAddTitle:
+    "Add an interlude with start/end (merged on the timeline at start time)",
+  interludeClearTitle: "Remove all added interludes",
+  interludeStartTitle: "Start (m:ss or seconds)",
+  interludeEndTitle: "End (m:ss or seconds)",
+  interludeStartPlaceholder: "Start e.g. 1:40.000",
+  interludeEndPlaceholder: "End e.g. 1:45.000",
+  bulkAssignNeedLyricsTitle: "Create lyric lines first",
+  bulkAssignTitle: "Bulk-assign lyrics to all voice segments",
+  segmentTimeRangeTitle:
+    "Time range for this row (start–end). Segment editor plays only this range.",
+  themeApplyTargetLine:
+    "Target (blue row): #{n} (click to assign → next row)",
+  themeApplyAfterTimeline: "Available after the timeline is generated",
+  themeAssignClickHint: "↓ Click to assign to the blue row",
+  simpleTimelineHeading: "Mini timeline (click to seek · click a segment to select)",
+  voiceSegmentsCreatedHeading: "Recorded voice segments ({count})",
+  voiceIdleHelp:
+    "Waiting for voice — tap Voice start to mark the segment start. Silence between Voice stop and the next Voice start becomes silence segments on the timeline.",
+  voiceRecordingHelp:
+    "Recording voice (started: {time}) — tap Voice stop to finish the segment.",
+  clearTimelineConfirm:
+    "Clear the entire timeline?\nAll manually created segments will be removed.",
+  overwritePhraseQueueConfirm:
+    "Overwrite the phrase queue and song-image suggestions?",
+  segmentTypeBrand: "Brand",
+  mobileSegmentEditButton: "Segment edit",
+  mobileRecordLyricStart: "Record start",
+  mobileRecordLyricEnd: "Record end",
+  mobilePhraseAssignHeading: "Phrase assign (mobile)",
+  lyricsDragHint: "Drag lyrics to reposition them.",
+  lyricsLayoutDisplay: "Layout:",
+  tryTransitionAnimation: "Replay transition animation",
+  transitionLabelShort: "Transition:",
+  segmentEditorTimeLabel: "Time:",
+  clearSegmentMediaButton: "Remove media (image / video)",
+  phraseQueueFullLyricsHint:
+    "Full lyrics are edited at the top of the page. After import, phrases appear here.",
+  lyricsInputAutoPhraseifyHint:
+    "After you enter lyrics they are phrase-split (including text from Import lyrics).",
+  ...editScreenStringsByLocale.en,
 } as const;
 
 export type UiStringKey = keyof typeof enStrings;
@@ -1230,16 +1321,103 @@ const ja = {
   navVideoList: "動画一覧",
   currentTimeShort: "現在:",
   assignLyricsToSegmentsShort: "歌詞を区間に割当",
+  phraseQueueRowTitle:
+    "クリック: 対応するタイムライン区間を編集対象にする / ダブルクリック: 編集中区間の歌詞に挿入",
+  phraseQueueMoveUpTitle: "上へ",
+  phraseQueueMoveDownTitle: "下へ",
+  phraseSplit: "分割",
+  phraseJoin: "結合",
+  phraseCopyRowTitle:
+    "この行を内部コピー（再生しない・上の再生バーと誤爆しにくい）",
+  phraseCopyRow: "行コピー",
+  songStyle_shittori: "しっとり",
+  songStyle_standard: "標準",
+  songStyle_tempo: "テンポ速め",
+  songStyle_rap: "ラップ/早口寄り",
+  displayTempo_readability: "見やすさ優先",
+  displayTempo_balance: "バランス",
+  displayTempo_rhythm: "ノリ優先",
+  songStyleLabel: "曲調:",
+  displayTempoLabel: "表示テンポ:",
+  presetDescriptionTech:
+    "（結合≦{merge}文字・分割>{split}文字・約{sec}秒/画面）",
+  autoGeneratePhrasesTooltip:
+    "現在の曲調で約{sec}秒ごとに画面切替になるようフレーズを自動生成（後から分割・結合で調整可）",
+  phraseifyOnlyButton: "フレーズ化のみ",
+  phraseQueuePanelExpand: "展開",
+  phraseQueuePanelMinimize: "最小化",
+  phraseQueueColumnWidthReset: "幅リセット",
+  phraseQueueColumnWidthResetTitle: "列幅をデフォルトに戻す",
+  phraseEditPlaceholderEmpty:
+    "フレーズ取り込み後、タイムラインで区間を選ぶとここでその行のフレーズを編集できます",
+  phraseEditPlaceholderActive:
+    "編集中のタイムライン区間に対応するフレーズを編集（全文はページ上部の歌詞欄）",
+  phraseEditingProgress:
+    "編集中: {index} / {total}（行クリックで選択のみ・ダブルクリックで歌詞枠へ挿入）",
+  phraseClipboardCopy: "フレーズコピー",
+  phraseClipboardPaste: "フレーズ貼付",
+  phraseClipboardCopyTitle:
+    "選択中フレーズを内部バッファへ（再生・シークは起こさない）。2ページ目以降は「行コピー」も利用可",
+  phraseClipboardPasteTitle: "内部バッファを選択中フレーズへ貼り付け（先にフレーズコピー）",
+  phraseCopiedToBuffer: "コピー済み:",
+  generateFullTextPanelTitle:
+    "フレーズキュー・キーワード解析・関連処理を一括更新（トップの画像候補パネル非表示時も内部処理は従来どおり）",
+  timelineStatsLine:
+    "タイムライン（{total} 区間 / 声 {voice} + 無音 {silence} + 間奏 {interlude}）",
+  timelineRowTypeVoice: "声",
+  timelineRowTypeSilence: "無音",
+  timelineRowTypeInterlude: "間奏",
+  interludeLabel: "間奏:",
+  interludeAdd: "間奏を追加",
+  interludeClear: "間奏をクリア",
+  interludeAddTitle:
+    "開始・終了を指定して間奏区間を追加（タイムラインに開始時刻でマージ表示）",
+  interludeClearTitle: "追加した間奏をすべて削除",
+  interludeStartTitle: "開始（分:秒 または 秒）",
+  interludeEndTitle: "終了（分:秒 または 秒）",
+  interludeStartPlaceholder: "開始 例: 1:40.000",
+  interludeEndPlaceholder: "終了 例: 1:45.000",
+  bulkAssignNeedLyricsTitle: "歌詞行を先に作成してください",
+  bulkAssignTitle: "全歌詞行に声区間を一括割当",
+  segmentTimeRangeTitle:
+    "この行で扱う時間区間（開始〜終了）。区間編集を開くとこの範囲だけが再生対象になります。",
+  themeApplyTargetLine: "適用先（青枠の行）: #{n}（クリックで割当→次行へ）",
+  themeApplyAfterTimeline: "（タイムライン生成後に割当可）",
+  themeAssignClickHint: "↓ クリックで青枠の行に割当",
+  simpleTimelineHeading: "簡易タイムライン（クリックでシーク・区間クリックで選択）",
+  voiceSegmentsCreatedHeading: "作成済み音声区間（{count} 件）",
+  voiceIdleHelp:
+    "今は声待ち — 「声開始」で区間の開始を記録。声停止～次の声開始は無音区間としてタイムラインに反映されます。",
+  voiceRecordingHelp:
+    "今は声区間記録中（開始: {time}）— 「声停止」で区間を確定。",
+  clearTimelineConfirm:
+    "タイムラインをすべてクリアしてよろしいですか？\n手動で作成した区間がすべて削除されます。",
+  overwritePhraseQueueConfirm: "フレーズキューと曲イメージ候補を上書きします。よろしいですか？",
+  segmentTypeBrand: "Brand",
+  mobileSegmentEditButton: "区間編集",
+  mobileRecordLyricStart: "開始を記録",
+  mobileRecordLyricEnd: "終了を記録",
+  mobilePhraseAssignHeading: "フレーズ割当（モバイル）",
+  lyricsDragHint: "歌詞はドラッグで移動できます",
+  lyricsLayoutDisplay: "表示:",
+  tryTransitionAnimation: "画像の演出アニメーションを再再生",
+  transitionLabelShort: "演出(transition):",
+  segmentEditorTimeLabel: "時間:",
+  clearSegmentMediaButton: "素材を外す（画像・動画）",
+  phraseQueueFullLyricsHint:
+    "歌詞全文はページ上部の入力欄で。取り込み後にフレーズがここに並びます。",
+  lyricsInputAutoPhraseifyHint:
+    "歌詞入力後にフレーズ化されます（Import lyrics で入力した内容も反映）。",
 };
 
 const STRINGS: Record<UiLocale, Row> = {
   en: enRow,
-  es: { ...enRow, ...es },
-  pt: { ...enRow, ...pt },
-  id: { ...enRow, ...id },
-  th: { ...enRow, ...th },
-  ko: { ...enRow, ...ko },
-  ja: { ...enRow, ...ja },
+  es: { ...enRow, ...es, ...editScreenStringsByLocale.es },
+  pt: { ...enRow, ...pt, ...editScreenStringsByLocale.pt },
+  id: { ...enRow, ...id, ...editScreenStringsByLocale.id },
+  th: { ...enRow, ...th, ...editScreenStringsByLocale.th },
+  ko: { ...enRow, ...ko, ...editScreenStringsByLocale.ko },
+  ja: { ...enRow, ...ja, ...editScreenStringsByLocale.ja },
 };
 
 const enFilters: Record<SegmentScreenFilter, string> = {

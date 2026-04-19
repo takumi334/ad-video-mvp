@@ -2,7 +2,7 @@
  * 曲調・表示テンポプリセットに基づく歌詞フレーズ化。
  * 句読点で分割したうえで、mergeShortBelow / splitLongAbove に従って結合・分割する。
  */
-import type { PresetParams } from "./displayPresets";
+import type { PresetNumericParams } from "./displayPresets";
 
 const PUNCTUATIONS = "、。！？.!?";
 const BRACKET_PAIRS: [string, string][] = [["(", ")"], ["[", "]"], ["「", "」"]];
@@ -56,7 +56,7 @@ function splitLongPhrase(s: string): [string, string] {
  * - mergeShortBelow 以下なら次と結合（長め表示）
  * - splitLongAbove 超なら分割（細かく切替）
  */
-export function phraseifyWithPreset(text: string, params: PresetParams): string[] {
+export function phraseifyWithPreset(text: string, params: PresetNumericParams): string[] {
   const { mergeShortBelow, splitLongAbove } = params;
   const raw = text
     .split(/\r?\n/)

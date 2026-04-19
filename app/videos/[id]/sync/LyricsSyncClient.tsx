@@ -31,7 +31,7 @@ import {
   type SourceVideoMeta,
 } from "@/lib/sourceVideoKey";
 import { autoGeneratePhraseChunks } from "@/lib/lyrics/autoGenerateChunks";
-import { getPresetParams } from "@/lib/lyrics/displayPresets";
+import { getPresetNumericParams } from "@/lib/lyrics/displayPresets";
 import { phraseifyWithPreset } from "@/lib/lyrics/phraseifyWithPreset";
 import { drawLyricsCaptionOnExportCanvas, getLyricsDisplayLines } from "@/lib/lyricsCaptionLayout";
 import { drawBrandEndCard } from "@/lib/export/exportBrandEndCard";
@@ -856,7 +856,7 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
           .filter(Boolean)
           .join("\n");
     if (!sourceText.trim()) return [];
-    const preset = getPresetParams("standard", "balance");
+    const preset = getPresetNumericParams("standard", "balance");
     const splitPhrases = phraseifyWithPreset(sourceText, preset);
     const chunks = autoGeneratePhraseChunks(splitPhrases, videoDuration, preset.secondsPerScreen);
     return chunks
@@ -2586,7 +2586,7 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
               onClick={handleOpenMobileEditSection}
               className="sync-toolbar-primary-btn sync-toolbar-primary-btn--compact"
             >
-              区間編集
+              {t("mobileSegmentEditButton")}
             </button>
             <button
               type="button"
@@ -2594,7 +2594,9 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
               disabled={!activeLine}
               className="sync-toolbar-primary-btn sync-toolbar-primary-btn--compact"
             >
-              {mobileAdjustTarget === "start" ? "開始を記録" : "終了を記録"}
+              {mobileAdjustTarget === "start"
+                ? t("mobileRecordLyricStart")
+                : t("mobileRecordLyricEnd")}
             </button>
             <span style={{ fontSize: 13, minWidth: 96, color: "#334155" }}>
               {t("currentTime")} <strong>{formatSecToMinSec(nowSec)}</strong>
@@ -2610,26 +2612,29 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
             }}
           >
             <div style={{ fontSize: 12, color: "#334155", marginBottom: 8, fontWeight: 700 }}>
-              フレーズ割当（モバイル）
+              {t("mobilePhraseAssignHeading")}
             </div>
             <div style={{ fontSize: 12, color: "#475569", marginBottom: 8, lineHeight: 1.5 }}>
-              現在区間: {activeLine ? `#${activeLine.index + 1}` : "未選択"} / 入力フレーズ: {mobilePhrases.length} / 割当済み:{" "}
-              {mobileSegmentFilledCount}
+              {t("mobileAssignPanelStatus")
+                .replace("{segment}", activeLine ? `#${activeLine.index + 1}` : t("mobileNotSelected"))
+                .replace("{phrases}", String(mobilePhrases.length))
+                .replace("{assigned}", String(mobileSegmentFilledCount))}
             </div>
             <div style={{ marginBottom: 8, fontSize: 12, color: "#0f172a", lineHeight: 1.5 }}>
-              <strong>この区間の歌詞:</strong> {mobileCurrentSegmentText || "（未設定）"}
+              <strong>{t("mobileThisSegmentLyricsStrong")}</strong>{" "}
+              {mobileCurrentSegmentText || t("mobileNotSetYet")}
             </div>
             <div style={{ marginBottom: 8, fontSize: 12, color: "#0f172a", lineHeight: 1.5 }}>
-              <strong>割当前の次フレーズ:</strong> {mobileCurrentPhrase?.text ?? "（なし）"}
+              <strong>{t("mobileNextPhraseStrong")}</strong> {mobileCurrentPhrase?.text ?? t("mobileEmptyPhraseSlot")}
             </div>
             <div style={{ marginBottom: 8, fontSize: 12, color: "#0f172a", lineHeight: 1.5 }}>
-              <strong>割当済みフレーズ:</strong>{" "}
+              <strong>{t("mobileAssignedPhrasesStrong")}</strong>{" "}
               {mobileAssignedPhrases.length > 0
                 ? mobileAssignedPhrases
                     .slice(0, 3)
                     .map((p) => p.text)
                     .join(" / ")
-                : "（まだありません）"}
+                : t("mobileNoAssignedPhrasesYet")}
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
               <button
@@ -2638,7 +2643,7 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
                 disabled={mobilePhrases.length === 0 || mobilePhraseCursor <= 0}
                 className="sync-toolbar-primary-btn sync-toolbar-primary-btn--compact"
               >
-                前フレーズ
+                {t("mobilePrevPhrase")}
               </button>
               <button
                 type="button"
@@ -2650,7 +2655,7 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
                 disabled={!activeLine || !mobileCurrentPhrase}
                 className="sync-toolbar-primary-btn sync-toolbar-primary-btn--compact"
               >
-                現在区間へ割当
+                {t("mobileAssignToSegment")}
               </button>
               <button
                 type="button"
@@ -2662,7 +2667,7 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
                 disabled={mobilePhrases.length === 0 || mobilePhraseCursor >= mobilePhrases.length - 1}
                 className="sync-toolbar-primary-btn sync-toolbar-primary-btn--compact"
               >
-                次フレーズ
+                {t("mobileNextPhrase")}
               </button>
             </div>
             {mobilePhrases.length > 0 ? (
@@ -2701,7 +2706,7 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
               </div>
             ) : (
               <div style={{ fontSize: 12, color: "#64748b" }}>
-                歌詞入力後にフレーズ化されます（Import lyrics で入力した内容も反映）。
+                {t("lyricsInputAutoPhraseifyHint")}
               </div>
             )}
           </div>
