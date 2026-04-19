@@ -1,19 +1,21 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "動画アップロード",
+  title: "Video upload",
   description:
-    "歌ってみた用の動画ファイルをアップロードし、歌詞同期・編集画面へ進みます。無料でブラウザから利用できます。",
+    "Upload a performance video (MP4, WebM, MOV) and continue to lyric timing in the browser. Free to try.",
   alternates: { canonical: "/upload" },
   openGraph: {
-    title: "動画アップロード｜歌ってみた動画編集（無料）",
-    description: "MP4 等の動画をアップロードして、歌詞タイミング編集へ。",
+    title: "Video upload — lyric video maker",
+    description:
+      "Upload MP4, WebM, or MOV and open the lyric sync editor next.",
     url: "/upload",
   },
   twitter: {
     card: "summary",
-    title: "動画アップロード｜歌ってみた動画編集（無料）",
-    description: "動画をアップロードして歌詞同期・編集へ進みます。",
+    title: "Video upload — lyric video maker",
+    description:
+      "Upload a video and continue to lyric timing in the browser.",
   },
 };
 

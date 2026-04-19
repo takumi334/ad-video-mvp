@@ -2,17 +2,24 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { upload } from "@vercel/blob/client";
 import { readFetchJson } from "@/lib/http/readFetchJson";
 import {
   formatBytes,
   MAX_VIDEO_UPLOAD_BYTES,
 } from "@/lib/upload/videoUpload";
-import { generateOwnerSecret, setVideoOwnerSecret } from "@/lib/videoOwnerToken";
+import {
+  generateOwnerSecret,
+  setVideoOwnerSecret,
+} from "@/lib/videoOwnerToken";
+
+const ACCEPT =
+  ".mp4,.webm,.mov,video/mp4,video/webm,video/quicktime" as const;
 
 export default function UploadPage() {
   const router = useRouter();
+  const inputId = useId();
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
@@ -22,7 +29,7 @@ export default function UploadPage() {
     if (!file) return;
     if (file.size > MAX_VIDEO_UPLOAD_BYTES) {
       setError(
-        `ファイルサイズが大きすぎます（最大 ${formatBytes(MAX_VIDEO_UPLOAD_BYTES)}）。`
+        `File is too large. Upload limit is ${formatBytes(MAX_VIDEO_UPLOAD_BYTES)}.`
       );
       return;
     }
@@ -33,15 +40,19 @@ export default function UploadPage() {
 
     try {
       const configRes = await fetch("/api/blob-upload", { method: "GET" });
-      const configParsed = await readFetchJson<{ ok?: boolean; message?: string }>(
-        configRes
-      );
+      const configParsed = await readFetchJson<{
+        ok?: boolean;
+        message?: string;
+      }>(configRes);
       if (!configParsed.ok) {
         setError(configParsed.message);
         return;
       }
       if (!configParsed.data?.ok) {
-        setError(configParsed.data?.message ?? "アップロード設定エラーが発生しました。");
+        setError(
+          configParsed.data?.message ??
+            "Upload configuration error. Please try again."
+        );
         return;
       }
 
@@ -67,7 +78,7 @@ export default function UploadPage() {
       }>(res);
 
       if (!parsed.ok) {
-        setError(parsed.message);
+        setError(parsed.message ?? "Something went wrong.");
         return;
       }
 
@@ -75,7 +86,7 @@ export default function UploadPage() {
       if (!json?.ok) {
         setError(
           json?.message ??
-            "アップロードに失敗しました。もう一度お試しください。"
+            "Upload failed. Please try again."
         );
         return;
       }
@@ -86,16 +97,21 @@ export default function UploadPage() {
         router.push(`/videos/${video.id}/sync`);
         return;
       }
-      setError("レスポンスに video.id がありません。");
+      setError("Server response was missing video id.");
     } catch (e) {
-      if (e instanceof Error && e.message.includes("FUNCTION_PAYLOAD_TOO_LARGE")) {
+      if (
+        e instanceof Error &&
+        e.message.includes("FUNCTION_PAYLOAD_TOO_LARGE")
+      ) {
         setError(
-          `動画が大きすぎるためアップロードできません（最大 ${formatBytes(
+          `Video is too large to upload (max ${formatBytes(
             MAX_VIDEO_UPLOAD_BYTES
-          )}）。`
+          )}).`
         );
       } else {
-        setError(e instanceof Error ? e.message : "アップロード中にエラーが発生しました");
+        setError(
+          e instanceof Error ? e.message : "An error occurred while uploading."
+        );
       }
     } finally {
       setIsUploading(false);
@@ -103,43 +119,83 @@ export default function UploadPage() {
   }
 
   return (
-    <div style={{ padding: 24 }}>
-      <nav style={{ marginBottom: 16 }}>
-        <Link href="/" style={{ marginRight: 12 }}>トップ</Link>
-        <Link href="/videos">動画一覧・素材検索</Link>
+    <div className="mx-auto max-w-2xl px-5 py-10 sm:px-8">
+      <nav className="mb-8 flex flex-wrap gap-x-4 gap-y-2 text-sm text-neutral-600">
+        <Link href="/" className="underline-offset-4 hover:underline">
+          Home
+        </Link>
+        <Link href="/videos" className="underline-offset-4 hover:underline">
+          Videos
+        </Link>
       </nav>
-      <h1>Video Upload</h1>
-      <p style={{ fontSize: 13, color: "#666", marginBottom: 12 }}>
-        アップロード上限: {formatBytes(MAX_VIDEO_UPLOAD_BYTES)}
+
+      <h1 className="mb-2 text-2xl font-semibold tracking-tight text-neutral-900">
+        Video upload
+      </h1>
+      <p className="mb-1 text-sm text-neutral-500">
+        Upload limit: {formatBytes(MAX_VIDEO_UPLOAD_BYTES)}
+      </p>
+      <p className="mb-10 text-sm text-neutral-500">
+        Supported formats: MP4, WebM, MOV
       </p>
 
-      <form onSubmit={onSubmit}>
-        <input
-          type="file"
-          accept=".mp4,video/mp4"
-          disabled={isUploading}
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        />
-        <button
-          type="submit"
-          style={{ marginLeft: 8 }}
-          disabled={isUploading || !file}
-        >
-          {isUploading ? "Uploading..." : "Upload"}
-        </button>
+      <form onSubmit={onSubmit} className="space-y-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-4">
+          <input
+            id={inputId}
+            type="file"
+            accept={ACCEPT}
+            disabled={isUploading}
+            className="sr-only"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
+          <label
+            htmlFor={inputId}
+            className={`inline-flex min-h-11 cursor-pointer items-center justify-center rounded-lg border-2 border-neutral-900 bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 shadow-sm transition hover:bg-neutral-50 focus-within:ring-2 focus-within:ring-neutral-900 focus-within:ring-offset-2 ${
+              isUploading ? "pointer-events-none opacity-50" : ""
+            }`}
+          >
+            Choose video file
+          </label>
+
+          <p
+            className={`min-h-6 flex-1 text-sm sm:min-w-0 ${
+              file ? "text-neutral-900" : "text-neutral-400"
+            }`}
+            aria-live="polite"
+          >
+            {file ? (
+              <span className="break-all font-medium">{file.name}</span>
+            ) : (
+              "No file selected"
+            )}
+          </p>
+
+          <button
+            type="submit"
+            disabled={isUploading || !file}
+            className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg bg-neutral-900 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-400 sm:w-auto"
+          >
+            {isUploading ? "Uploading…" : "Upload video"}
+          </button>
+        </div>
+
+        {file && (
+          <p className="text-sm text-neutral-500">
+            File size: {formatBytes(file.size)}
+          </p>
+        )}
       </form>
-      {file && (
-        <p style={{ marginTop: 10, fontSize: 13, color: "#666" }}>
-          選択ファイルサイズ: {formatBytes(file.size)}
-        </p>
-      )}
 
       {error && (
-        <div style={{ marginTop: 16, color: "red" }}>
-          エラー: {error}
+        <div
+          className="mt-8 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          role="alert"
+        >
+          <span className="font-medium">Error: </span>
+          {error}
         </div>
       )}
     </div>
   );
 }
-
