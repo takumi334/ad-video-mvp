@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { getSiteUrl } from "@/lib/site";
+import { getSiteUrl, PRODUCTION_SITE_ORIGIN } from "@/lib/site";
 
 export default function robots(): MetadataRoute.Robots {
   const base = getSiteUrl();
@@ -12,5 +12,7 @@ export default function robots(): MetadataRoute.Robots {
       },
     ],
     sitemap: `${base}/sitemap.xml`,
+    /** Production host hint for crawlers (mv.gegenpress.app). */
+    host: PRODUCTION_SITE_ORIGIN.replace(/^https:\/\//, ""),
   };
 }

@@ -13,14 +13,14 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "Lyrics video maker (free) | Free karaoke cover video editor",
+    title: "Lyrics video maker (free) | Free Video Editor",
     description: "Browser-based lyric video timing for covers. Upload and sync lyrics to your video.",
     url: "/en/lyrics-video-maker",
     type: "article",
     locale: "en_US",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Lyrics video maker (free)",
     description: "Free browser tool to time lyrics with your cover video.",
   },

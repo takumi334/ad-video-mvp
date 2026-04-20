@@ -1,16 +1,44 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PRODUCTION_SITE_ORIGIN } from "@/lib/site";
+
+const enTitle = "Free Video Editor for Karaoke Covers & Lyric Videos";
+const enDescription =
+  "Create karaoke cover videos, lyric videos, MV-style music videos, and short clips online for free. No install required.";
+
+const enKeywords = [
+  "free video editor",
+  "karaoke cover editor",
+  "lyric video maker",
+  "music video editor",
+  "mv maker",
+  "online video editor",
+  "free mv maker",
+];
 
 export const metadata: Metadata = {
-  title: "Home",
+  title: { absolute: enTitle },
+  description: enDescription,
+  keywords: enKeywords,
   alternates: {
-    canonical: "/en",
+    canonical: `${PRODUCTION_SITE_ORIGIN}/en`,
     languages: {
       ja: "/",
       en: "/en",
     },
   },
-  openGraph: { url: "/en" },
+  openGraph: {
+    title: enTitle,
+    description: enDescription,
+    url: `${PRODUCTION_SITE_ORIGIN}/en`,
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: enTitle,
+    description: enDescription,
+  },
 };
 
 export default function EnHomePage() {
@@ -33,8 +61,11 @@ export default function EnHomePage() {
         }}
       >
         <h1 style={{ margin: "0 0 12px 0", fontSize: 22, color: "#0f172a" }}>
-          Free video editor for karaoke covers & lyric videos
+          Free Video Editor for Karaoke Covers & Lyric Videos
         </h1>
+        <p style={{ margin: "0 0 12px 0", fontSize: 15 }}>
+          Create lyric videos, karaoke covers, and MV-style music videos online for free.
+        </p>
         <p style={{ margin: "0 0 12px 0", fontSize: 15 }}>
           Upload a music video (MP4, etc.) and align on-screen lyrics with your performance—similar to making a{" "}
           <strong>lyric video</strong> or preparing an <strong>MV</strong>. Image search helps you pick visuals. The

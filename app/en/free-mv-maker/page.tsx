@@ -13,14 +13,14 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "Free MV maker | Free karaoke cover video editor",
+    title: "Free MV maker | Free Video Editor",
     description: "Free browser workflow for MV-style prep: lyrics timing plus image search for your cover.",
     url: "/en/free-mv-maker",
     type: "article",
     locale: "en_US",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Free MV maker",
     description: "Free browser MV prep: lyrics sync and visuals for cover videos.",
   },

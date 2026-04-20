@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "./providers";
 import { SoftwareApplicationJsonLd } from "./SoftwareApplicationJsonLd";
-import { getSiteUrl } from "@/lib/site";
+import { getSiteUrl, PRODUCTION_SITE_ORIGIN } from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,27 +15,30 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteName = "歌ってみた動画編集（無料）";
+const siteName = "Free Video Editor for Karaoke Covers & Lyric Videos";
 const defaultDescription =
-  "歌ってみた向けの無料動画編集ツール。歌詞動画の作成・タイミング同期・MV作成の下準備をブラウザで。動画をアップロードしてすぐ試せます。";
+  "Create karaoke cover videos, lyric videos, MV-style music videos, and short clips online for free. No install required.";
+
+const seoKeywords = [
+  "free video editor",
+  "karaoke cover editor",
+  "lyric video maker",
+  "music video editor",
+  "mv maker",
+  "online video editor",
+  "free mv maker",
+];
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: {
-    default: `${siteName}｜歌詞動画・MV作成`,
-    template: `%s｜${siteName}`,
+    default: siteName,
+    template: "%s | Free Video Editor",
   },
   description: defaultDescription,
-  applicationName: siteName,
-  keywords: [
-    "無料 動画編集",
-    "歌ってみた 動画編集",
-    "歌詞動画 作成",
-    "MV作成 無料",
-    "歌ってみた",
-    "歌詞同期",
-  ],
-  authors: [{ name: siteName }],
+  applicationName: "MV Editor — gegenpress",
+  keywords: seoKeywords,
+  authors: [{ name: "gegenpress" }],
   robots: {
     index: true,
     follow: true,
@@ -48,15 +51,15 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    locale: "ja_JP",
+    locale: "en_US",
     siteName,
-    title: `${siteName}｜歌詞動画・MV作成`,
+    title: siteName,
     description: defaultDescription,
-    url: "/",
+    url: PRODUCTION_SITE_ORIGIN,
   },
   twitter: {
-    card: "summary",
-    title: `${siteName}｜歌詞動画・MV作成`,
+    card: "summary_large_image",
+    title: siteName,
     description: defaultDescription,
   },
   other: {
