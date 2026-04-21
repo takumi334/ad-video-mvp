@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import path from "path";
-import fs from "fs/promises";
+import { del } from "@vercel/blob";
 import {
   assertCanMutateVideo,
   canReadVideo,
   getBearerToken,
 } from "@/lib/apiVideoAuth";
 import { prisma } from "@/lib/prisma";
+import { isAllowedVercelBlobVideoUrl } from "@/lib/blobUrlAllowlist";
 
 export const runtime = "nodejs";
 
@@ -117,19 +117,14 @@ export async function DELETE(
       );
     }
 
-    const relativePath = video.url.startsWith("/")
-      ? video.url.slice(1)
-      : video.url;
-    const filePath = path.join(process.cwd(), "public", relativePath);
-
-    try {
-      await fs.unlink(filePath);
-    } catch (error: unknown) {
-      const code =
-        typeof error === "object" && error !== null && "code" in error
-          ? String((error as { code?: unknown }).code)
-          : null;
-      if (code !== "ENOENT") throw error;
+    // Avoid tracing local public assets into the serverless bundle.
+    // Current uploads are stored on Vercel Blob, so delete by URL when possible.
+    if (isAllowedVercelBlobVideoUrl(video.url)) {
+      try {
+        await del(video.url);
+      } catch (error) {
+        console.warn("[videos.delete] blob delete failed", { id: video.id, url: video.url, error });
+      }
     }
 
     await prisma.video.delete({

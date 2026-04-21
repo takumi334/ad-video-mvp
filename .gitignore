@@ -47,3 +47,5 @@ next-env.d.ts
 
 # uploaded media (MVP)
 /public/uploads/
+
+.vercel
