@@ -18,6 +18,14 @@ export async function generateMetadata({
   return {
     title: short,
     description: `動画（ID: ${videoId}）の歌詞同期・編集画面です。歌ってみた向けにタイミング調整や歌詞動画の作成を行えます。`,
+    robots: {
+      index: false,
+      follow: true,
+      googleBot: {
+        index: false,
+        follow: true,
+      },
+    },
     alternates: { canonical: `/videos/${videoId}` },
     openGraph: {
       title: `${short}の編集｜歌ってみた動画編集（無料）`,

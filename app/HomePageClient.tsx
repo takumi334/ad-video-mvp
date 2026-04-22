@@ -96,49 +96,6 @@ export default function HomePageClient() {
 
   return (
     <div style={{ padding: 40, maxWidth: 640 }}>
-      <article
-        style={{
-          marginBottom: 32,
-          padding: "20px 24px",
-          background: "#f8fafc",
-          borderRadius: 12,
-          border: "1px solid #e2e8f0",
-          lineHeight: 1.75,
-          fontSize: 15,
-          color: "#334155",
-        }}
-      >
-        <h2 style={{ margin: "0 0 12px 0", fontSize: 18, color: "#0f172a" }}>
-          無料で使える歌ってみた向け動画編集・歌詞動画づくり
-        </h2>
-        <p style={{ margin: "0 0 12px 0" }}>
-          このサイトは、<strong>歌ってみたの動画編集</strong>や<strong>歌詞動画の作成</strong>をブラウザ上で進められるサービスです。アップロードした動画に合わせて歌詞のタイミングを合わせ、画像素材を組み合わせて<strong>MV作成</strong>の下準備まで<strong>無料</strong>で試せます。
-        </p>
-        <p style={{ margin: "0 0 12px 0" }}>
-          「無料 動画編集」「歌ってみた 動画編集」「歌詞動画 作成」「MV作成
-          無料」でお探しの方は、まず動画をアップロードして編集画面へ進んでください。
-        </p>
-        <p style={{ margin: "0 0 12px 0" }}>
-          歌ってみた編集の流れや用語の整理は{" "}
-          <Link href="/utattemita-edit" style={{ color: "#2563eb", fontWeight: 600 }}>
-            歌ってみた動画編集（無料）のご案内
-          </Link>
-          、<Link href="/lyrics-video-maker" style={{ color: "#2563eb", fontWeight: 600 }}>
-            歌詞動画メーカー（無料）
-          </Link>
-          、<Link href="/free-mv-maker" style={{ color: "#2563eb", fontWeight: 600 }}>
-            無料MVメーカー
-          </Link>
-          もご覧ください。
-        </p>
-        <p style={{ margin: 0 }}>
-          English speakers:{" "}
-          <Link href="/en" style={{ color: "#2563eb", fontWeight: 600 }}>
-            English site (/en)
-          </Link>
-        </p>
-      </article>
-
       <h1 style={{ marginBottom: 24 }}>広告動画アップロード MVP</h1>
 
       <input
@@ -207,6 +164,50 @@ export default function HomePageClient() {
           {error}
         </div>
       )}
+
+      <article
+        style={{
+          marginTop: 32,
+          marginBottom: 32,
+          padding: "20px 24px",
+          background: "#f8fafc",
+          borderRadius: 12,
+          border: "1px solid #e2e8f0",
+          lineHeight: 1.75,
+          fontSize: 15,
+          color: "#334155",
+        }}
+      >
+        <h2 style={{ margin: "0 0 12px 0", fontSize: 18, color: "#0f172a" }}>
+          無料で使える歌ってみた向け動画編集・歌詞動画づくり
+        </h2>
+        <p style={{ margin: "0 0 12px 0" }}>
+          このサイトは、<strong>歌ってみたの動画編集</strong>や<strong>歌詞動画の作成</strong>をブラウザ上で進められるサービスです。アップロードした動画に合わせて歌詞のタイミングを合わせ、画像素材を組み合わせて<strong>MV作成</strong>の下準備まで<strong>無料</strong>で試せます。
+        </p>
+        <p style={{ margin: "0 0 12px 0" }}>
+          「無料 動画編集」「歌ってみた 動画編集」「歌詞動画 作成」「MV作成
+          無料」でお探しの方は、まず動画をアップロードして編集画面へ進んでください。
+        </p>
+        <p style={{ margin: "0 0 12px 0" }}>
+          歌ってみた編集の流れや用語の整理は{" "}
+          <Link href="/utattemita-edit" style={{ color: "#2563eb", fontWeight: 600 }}>
+            歌ってみた動画編集（無料）のご案内
+          </Link>
+          、<Link href="/lyrics-video-maker" style={{ color: "#2563eb", fontWeight: 600 }}>
+            歌詞動画メーカー（無料）
+          </Link>
+          、<Link href="/free-mv-maker" style={{ color: "#2563eb", fontWeight: 600 }}>
+            無料MVメーカー
+          </Link>
+          もご覧ください。
+        </p>
+        <p style={{ margin: 0 }}>
+          English speakers:{" "}
+          <Link href="/en" style={{ color: "#2563eb", fontWeight: 600 }}>
+            English site (/en)
+          </Link>
+        </p>
+      </article>
 
       <nav style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid #eee" }}>
         <p style={{ margin: "0 0 12px 0", fontSize: 14, color: "#666" }}>その他</p>
