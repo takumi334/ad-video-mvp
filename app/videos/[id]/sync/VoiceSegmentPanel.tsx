@@ -79,6 +79,8 @@ import {
 import { renderMosaicRegionToCanvas } from "@/lib/privacyMaskCanvas";
 import { PreviewLyricsCaptionAutoFit } from "@/lib/previewLyricsCaptionAutoFit";
 import { useUiLocale } from "@/lib/i18n/UiLocaleProvider";
+import { ImageCropEditor } from "@/components/segmentMedia/ImageCropEditor";
+import { isHomeImageFile } from "@/lib/homeMediaKinds";
 
 /** コンソールで区間一覧サムネを追跡: localStorage.setItem("adVideoDebugTimelineThumb", "1") 後に再読込 */
 function shouldLogTimelineThumbDebug(): boolean {
@@ -1842,11 +1844,14 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
   /** 区間編集モーダル: 画像変更パネル（候補・自分の画像） */
   const [modalImagePickerOpen, setModalImagePickerOpen] = useState(false);
   const [modalImagePickerTab, setModalImagePickerTab] = useState<
-    "suggested" | "uploaded" | "uploadedVideo"
+    "suggested" | "uploaded" | "uploadCrop" | "uploadedVideo"
   >("suggested");
   /** モーダル「自分の画像」タブ: 選択中ファイルとプレビュー用 object URL */
   const [modalUploadPick, setModalUploadPick] = useState<{ file: File; url: string } | null>(null);
+  /** 「アップロード＋編集」タブ用（トリミング後に別 blob になるため独立） */
+  const [modalCropPick, setModalCropPick] = useState<{ file: File; url: string } | null>(null);
   const modalSegmentImageFileInputRef = useRef<HTMLInputElement>(null);
+  const modalCropImageFileInputRef = useRef<HTMLInputElement>(null);
   const modalSegmentVideoFileInputRef = useRef<HTMLInputElement>(null);
   const modalSegmentOverlayImageFileInputRef = useRef<HTMLInputElement>(null);
   const modalMiniCompositeOverlayImageFileInputRef = useRef<HTMLInputElement>(null);
@@ -3807,6 +3812,21 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
       return null;
     });
   }
+
+  function clearModalCropPick() {
+    setModalCropPick((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+  }
+
+  useEffect(() => {
+    if (modalImagePickerTab === "uploadCrop") return;
+    setModalCropPick((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+  }, [modalImagePickerTab]);
 
   function clearModalVideoPick() {
     setModalVideoUploadError(null);
@@ -7505,6 +7525,18 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                         </button>
                         <button
                           type="button"
+                          onClick={() => setModalImagePickerTab("uploadCrop")}
+                          style={{
+                            padding: "6px 12px",
+                            background: modalImagePickerTab === "uploadCrop" ? "#e3f2fd" : "#fff",
+                            border: "1px solid #ccc",
+                            borderRadius: 4,
+                          }}
+                        >
+                          アップロード＋編集
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setModalImagePickerTab("uploadedVideo")}
                           style={{
                             padding: "6px 12px",
@@ -8193,18 +8225,14 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                           <input
                             ref={modalSegmentImageFileInputRef}
                             type="file"
-                            accept="image/*"
+                            accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
                             style={{ display: "none" }}
                             onChange={(e) => {
                               const f = e.target.files?.[0];
                               e.target.value = "";
                               if (!f) return;
-                              const byExt = /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif|tiff?|svg)$/i.test(
-                                f.name
-                              );
-                              const ok = f.type.startsWith("image/") || byExt;
-                              if (!ok) {
-                                window.alert("画像ファイルを選んでください");
+                              if (!isHomeImageFile(f)) {
+                                window.alert("PNG / JPG / WebP の画像を選んでください");
                                 return;
                               }
                               setModalUploadPick((prev) => {
@@ -8275,8 +8303,106 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             </>
                           ) : null}
                           <p style={{ fontSize: 11, color: "#666", margin: 0 }}>
-                            スマホの写真・ギャラリーから選べます（画像形式。透過PNGはブラウザ表示どおり反映されます）
+                            PNG / JPG / WebP。透過PNGはそのまま反映されます。
                           </p>
+                        </div>
+                      ) : modalImagePickerTab === "uploadCrop" ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 12,
+                            alignItems: "stretch",
+                            width: "100%",
+                            maxWidth: 420,
+                            padding: 12,
+                            borderRadius: 12,
+                            background: "#f8fafc",
+                            border: "1px solid #e2e8f0",
+                            boxSizing: "border-box",
+                          }}
+                        >
+                          <input
+                            ref={modalCropImageFileInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                            style={{ display: "none" }}
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              e.target.value = "";
+                              if (!f) return;
+                              if (!isHomeImageFile(f)) {
+                                window.alert("PNG / JPG / WebP の画像を選んでください");
+                                return;
+                              }
+                              setModalCropPick((prev) => {
+                                if (prev) URL.revokeObjectURL(prev.url);
+                                return { file: f, url: URL.createObjectURL(f) };
+                              });
+                            }}
+                          />
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                            <button
+                              type="button"
+                              onClick={() => modalCropImageFileInputRef.current?.click()}
+                              style={{
+                                padding: "8px 14px",
+                                fontSize: 13,
+                                fontWeight: 600,
+                                borderRadius: 8,
+                                border: "1px solid #cbd5e1",
+                                background: "#fff",
+                                color: "#0f172a",
+                                cursor: "pointer",
+                              }}
+                            >
+                              画像を選ぶ
+                            </button>
+                            {modalCropPick ? (
+                              <button
+                                type="button"
+                                onClick={() => clearModalCropPick()}
+                                style={{
+                                  padding: "8px 12px",
+                                  fontSize: 12,
+                                  borderRadius: 8,
+                                  border: "none",
+                                  background: "transparent",
+                                  color: "#64748b",
+                                  textDecoration: "underline",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                取り消し
+                              </button>
+                            ) : null}
+                          </div>
+                          {modalCropPick ? (
+                            <ImageCropEditor
+                              imageUrl={modalCropPick.url}
+                              maxFrameWidth={360}
+                              onApplyBackground={(file) => {
+                                if (previewRowIndex == null) return;
+                                offerLocalUploadHintThen(() => {
+                                  setSegmentImage(previewRowIndex, file, "uploaded");
+                                  clearModalCropPick();
+                                  setModalImagePickerTab("uploaded");
+                                });
+                              }}
+                              onApplyOverlay={(file) => {
+                                if (previewRowIndex == null) return;
+                                offerLocalUploadHintThen(() => {
+                                  setSegmentOverlayImage(previewRowIndex, file);
+                                  clearModalCropPick();
+                                  setModalImagePickerTab("uploaded");
+                                });
+                              }}
+                            />
+                          ) : (
+                            <p style={{ fontSize: 12, color: "#64748b", margin: 0, lineHeight: 1.5 }}>
+                              比率・拡大・回転を調整してから保存できます。スマホはドラッグで位置を変えられます。
+                            </p>
+                          )}
                         </div>
                       ) : (
                         <div

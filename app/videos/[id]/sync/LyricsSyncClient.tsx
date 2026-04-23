@@ -346,6 +346,8 @@ type ExportSegmentFrameCache = {
     mosaicOpacity: number;
     brandOpacity: number;
   };
+  /** 区間オーバーレイ画像（背景・モザイクの間に描画） */
+  overlayFgImage: HTMLImageElement | null;
 }
 
 function exportNameMaskAppliesToSegment(
@@ -358,6 +360,55 @@ function exportNameMaskAppliesToSegment(
   const maxIdx = Math.max(0, timelineLen - 1);
   const target = Math.min(Math.max(0, nmp.applySegmentIndex), maxIdx);
   return segIndex === target;
+}
+
+function drawOverlayForegroundOnCanvas(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+  img: HTMLImageElement,
+  opacity: number,
+  scaleX: number,
+  scaleY: number,
+  position: SegmentOverlayPosition,
+  offsetX: number,
+  offsetY: number
+): void {
+  const iw = img.naturalWidth;
+  const ih = img.naturalHeight;
+  if (iw <= 0 || ih <= 0) return;
+  const baseFit = Math.min(canvasWidth / iw, canvasHeight / ih) * 0.5;
+  const drawW = iw * baseFit * scaleX;
+  const drawH = ih * baseFit * scaleY;
+  let x = (canvasWidth - drawW) / 2;
+  let y = (canvasHeight - drawH) / 2;
+  const margin = Math.min(28, canvasWidth * 0.04);
+  switch (position) {
+    case "topLeft":
+      x = margin;
+      y = margin;
+      break;
+    case "topRight":
+      x = canvasWidth - drawW - margin;
+      y = margin;
+      break;
+    case "bottomLeft":
+      x = margin;
+      y = canvasHeight - drawH - margin;
+      break;
+    case "bottomRight":
+      x = canvasWidth - drawW - margin;
+      y = canvasHeight - drawH - margin;
+      break;
+    default:
+      break;
+  }
+  x += offsetX;
+  y += offsetY;
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
+  ctx.drawImage(img, x, y, drawW, drawH);
+  ctx.restore();
 }
 
 async function drawExportVideoFrame(
@@ -402,6 +453,21 @@ async function drawExportVideoFrame(
       });
     }
     drawContainMediaOnCanvas(ctx, videoEl, width, height);
+  }
+
+  if (cache.overlayFgImage && cache.overlayFgImage.naturalWidth > 0) {
+    drawOverlayForegroundOnCanvas(
+      ctx,
+      width,
+      height,
+      cache.overlayFgImage,
+      cache.overlayOpacity,
+      cache.overlayScaleX,
+      cache.overlayScaleY,
+      cache.overlayPos,
+      cache.overlayX,
+      cache.overlayY
+    );
   }
 
   if (cache.overlayEnabled && cache.overlayMode === "mosaic" && cache.mosaicRegions && cache.mosaicRegions.length > 0) {
@@ -1617,7 +1683,6 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
       const overlayEnabled = project.segmentCompositeEnabled[i] ?? false;
       const overlayMode = (project.segmentCompositeModes[i] ?? "none") as SegmentCompositeMode;
       const overlayImageUrl = project.segmentOverlayImageUrls[i] ?? "";
-      const overlayText = (project.segmentOverlayTexts[i] ?? "").trim();
       const overlayOpacity = Math.min(1, Math.max(0, project.segmentOverlayOpacity[i] ?? 0.85));
       const overlayScaleX = project.segmentOverlayScaleX[i] ?? 1;
       const overlayScaleY = project.segmentOverlayScaleY[i] ?? 1;
@@ -1632,6 +1697,8 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
 
       const bgImage = mediaType === "image" ? await getImage(imageUrl) : null;
       const bgSegmentVideo = mediaType === "video" ? await getSegmentVideo(i, segmentVideoUrl) : null;
+      const overlayFgImage =
+        overlayImageUrl.trim() !== "" ? await getImage(overlayImageUrl.trim()) : null;
       const mosaicRegions =
         overlayEnabled && overlayMode === "mosaic"
           ? normalizeExportMosaicRegions(project.segmentMosaicRegions?.[i])
@@ -1681,6 +1748,7 @@ export function LyricsSyncClient({ videoId = 0, initialLines = [] }: LyricsSyncC
         mosaicRegions,
         brandMaskRegions,
         nameMaskAuto,
+        overlayFgImage,
       });
       setExportVideoMessage(`動画を書き出し中… 準備 (${i + 1}/${segments.length})`);
     }
