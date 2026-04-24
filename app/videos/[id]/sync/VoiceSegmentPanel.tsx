@@ -3136,7 +3136,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
         branding: exportTimelineForFp.filter((s) => Boolean(s.isBranding)).length,
         detail: timelineSegmentsDebugRows(exportTimelineForFp),
       });
-      return {
+      const payload = {
         timelineSegments: timelineSegments.map((s) => ({
           startSec: s.startSec,
           endSec: s.endSec,
@@ -3191,7 +3191,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
           if (sel.imageSource === "uploaded" && (u.startsWith("blob:") || u.startsWith("data:"))) {
             return {
               ...sel,
-              localImageNeedsReselect: true,
+              localImageNeedsReselect: sel.materialHistoryId ? false : true,
               imageUrl: "",
               previewUrl: undefined,
             };
@@ -3204,6 +3204,17 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
           rules: nameMaskPreset.rules.map((r) => ({ ...r })),
         },
       };
+      console.log("[segment-image-save-payload]", {
+        rows: payload.segmentImageSelections.map((sel, i) => ({
+          i,
+          imageUrl: payload.segmentImageUrls[i] ?? "",
+          source: sel?.imageSource ?? null,
+          materialHistoryId: sel?.materialHistoryId ?? null,
+          localImageNeedsReselect: Boolean(sel?.localImageNeedsReselect),
+          imageEditSettings: sel?.imageEditSettings ?? null,
+        })),
+      });
+      return payload;
     },
     importProjectState(state: VoiceSegmentPanelProjectState) {
       phraseClipboardRef.current = null;
@@ -3379,6 +3390,47 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
         (pad(state.segmentScreenFilters, "normal") as unknown[]).map((v) => parseSegmentScreenFilter(v))
       );
       setSegmentImageSelections(restoredImageSelections);
+      console.log("[segment-image-restore-payload]", {
+        rows: restoredImageSelections.map((sel, i) => ({
+          i,
+          imageUrl: restoredImageUrls[i] ?? "",
+          source: sel?.imageSource ?? null,
+          materialHistoryId: sel?.materialHistoryId ?? null,
+          localImageNeedsReselect: Boolean(sel?.localImageNeedsReselect),
+          imageEditSettings: sel?.imageEditSettings ?? null,
+        })),
+      });
+      void (async () => {
+        const historyRows = listSegmentMaterialHistory();
+        const byId = new Map(historyRows.map((row) => [row.imageId, row]));
+        for (let i = 0; i < n; i++) {
+          const sel = restoredImageSelections[i];
+          if (!sel || sel.imageSource !== "uploaded") continue;
+          const hasRestoredUrl = (restoredImageUrls[i] ?? "").trim() !== "";
+          if (hasRestoredUrl) continue;
+          const historyId = sel.materialHistoryId?.trim();
+          if (!historyId) continue;
+          const row = byId.get(historyId);
+          if (!row) continue;
+          const resolvedUrl = await resolveSegmentMaterialHistoryUrl(row);
+          if (!resolvedUrl) continue;
+          setSegmentImage(i, resolvedUrl, "uploaded", {
+            lyricText: sel.lyricText,
+            searchKeywords: sel.searchKeywords,
+            searchTags: sel.searchTags,
+            pixabayImageId: sel.pixabayImageId,
+            apiRank: sel.apiRank,
+            boostScore: sel.boostScore,
+            boostReason: sel.boostReason,
+            pageUrl: sel.pageUrl,
+            imageUrl: resolvedUrl,
+            previewUrl: resolvedUrl,
+            selectedAt: sel.selectedAt,
+            materialHistoryId: historyId,
+            imageEditSettings: sel.imageEditSettings,
+          });
+        }
+      })();
       const restoredFlowTimeSec =
         typeof state.flowTimeSec === "number" && Number.isFinite(state.flowTimeSec)
           ? Math.max(0, state.flowTimeSec)
@@ -3905,7 +3957,17 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
       title?: string;
       imageId?: string;
     }) => {
+      console.log("[segment-material-history-save]", {
+        imageUrl: args.imageUrl ?? "",
+        hasBlob: Boolean(args.imageBlob),
+        imageId: args.imageId ?? null,
+        editSettings: args.editSettings ?? null,
+      });
       const saved = await upsertSegmentMaterialHistory(args);
+      console.log("[segment-material-history-saved]", {
+        imageId: saved?.imageId ?? null,
+        blobId: saved?.blobId ?? null,
+      });
       await refreshSegmentMaterialHistory();
       return saved;
     },
