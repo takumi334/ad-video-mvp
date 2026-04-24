@@ -81,6 +81,14 @@ import { PreviewLyricsCaptionAutoFit } from "@/lib/previewLyricsCaptionAutoFit";
 import { useUiLocale } from "@/lib/i18n/UiLocaleProvider";
 import { ImageCropEditor } from "@/components/segmentMedia/ImageCropEditor";
 import { isHomeImageFile } from "@/lib/homeMediaKinds";
+import {
+  listSegmentMaterialHistory,
+  patchSegmentMaterialHistory,
+  resolveSegmentMaterialHistoryUrl,
+  upsertSegmentMaterialHistory,
+  type SegmentMaterialEditSettings,
+  type SegmentMaterialHistoryEntry,
+} from "@/lib/segmentMaterialHistory";
 
 /** コンソールで区間一覧サムネを追跡: localStorage.setItem("adVideoDebugTimelineThumb", "1") 後に再読込 */
 function shouldLogTimelineThumbDebug(): boolean {
@@ -803,6 +811,8 @@ export type SegmentImageSelectionMeta = {
   boostReason?: string;
   pageUrl?: string;
   selectedAt: string;
+  materialHistoryId?: string;
+  imageEditSettings?: SegmentMaterialEditSettings;
   /** 自動保存復元後など、端末内ファイルの再指定が必要 */
   localImageNeedsReselect?: boolean;
 };
@@ -1844,7 +1854,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
   /** 区間編集モーダル: 画像変更パネル（候補・自分の画像） */
   const [modalImagePickerOpen, setModalImagePickerOpen] = useState(false);
   const [modalImagePickerTab, setModalImagePickerTab] = useState<
-    "suggested" | "uploaded" | "uploadCrop" | "uploadedVideo"
+    "suggested" | "uploaded" | "uploadCrop" | "uploadedVideo" | "recent"
   >("suggested");
   /** モーダル「自分の画像」タブ: 選択中ファイルとプレビュー用 object URL */
   const [modalUploadPick, setModalUploadPick] = useState<{ file: File; url: string } | null>(null);
@@ -1868,6 +1878,11 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
   /** 検索バー入力（onChange のみ更新。検索はしない） */
   const [manualImageSearchInput, setManualImageSearchInput] = useState("");
   const manualImageSearchInputRef = useRef<HTMLInputElement>(null);
+  /** 端末側の素材履歴（IndexedDB blob + localStorage メタ） */
+  const [segmentMaterialHistory, setSegmentMaterialHistory] = useState<
+    (SegmentMaterialHistoryEntry & { resolvedUrl?: string })[]
+  >([]);
+  const segmentMaterialHistoryObjectUrlsRef = useRef<string[]>([]);
   const flowPreviewVideoRef = useRef<HTMLVideoElement>(null);
   /** 流れプレビュー: video が muted のとき同じ src で音声だけ再生 */
   const flowPreviewAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -3555,6 +3570,8 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
       imageUrl?: string;
       previewUrl?: string;
       selectedAt?: string;
+      materialHistoryId?: string;
+      imageEditSettings?: SegmentMaterialEditSettings;
     }
   ) {
     const preparedImageUrl =
@@ -3653,6 +3670,12 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
           ? selectionContext.boostReason
           : undefined;
       const selectedAt = selectionContext?.selectedAt || new Date().toISOString();
+      const materialHistoryId =
+        typeof selectionContext?.materialHistoryId === "string" &&
+        selectionContext.materialHistoryId.trim() !== ""
+          ? selectionContext.materialHistoryId
+          : undefined;
+      const imageEditSettings = selectionContext?.imageEditSettings;
       const previewUrlFromCtx = (selectionContext?.previewUrl ?? "").trim();
       const previewUrl =
         previewUrlFromCtx !== "" ? previewUrlFromCtx : imageUrl !== "" ? imageUrl : undefined;
@@ -3672,6 +3695,8 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
           boostReason,
           pageUrl,
           selectedAt,
+          materialHistoryId,
+          imageEditSettings,
           localImageNeedsReselect: false,
         };
         return arr;
@@ -3835,6 +3860,244 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
       return null;
     });
   }
+
+  const refreshSegmentMaterialHistory = useCallback(async () => {
+    const rows = listSegmentMaterialHistory();
+    const prevUrls = segmentMaterialHistoryObjectUrlsRef.current;
+    segmentMaterialHistoryObjectUrlsRef.current = [];
+    for (const u of prevUrls) URL.revokeObjectURL(u);
+
+    const resolved = await Promise.all(
+      rows.slice(0, 30).map(async (row) => {
+        const url = await resolveSegmentMaterialHistoryUrl(row);
+        if (url?.startsWith("blob:")) segmentMaterialHistoryObjectUrlsRef.current.push(url);
+        return { ...row, resolvedUrl: url ?? undefined };
+      })
+    );
+    const nextRows = resolved.filter((x) => Boolean(x.resolvedUrl || x.imageUrl));
+    setSegmentMaterialHistory((prev) => {
+      const prevSig = prev
+        .map((x) => `${x.imageId}|${x.lastUsedAt}|${x.favorite ? 1 : 0}|${x.chorusSaved ? 1 : 0}|${x.resolvedUrl ?? ""}`)
+        .join("||");
+      const nextSig = nextRows
+        .map((x) => `${x.imageId}|${x.lastUsedAt}|${x.favorite ? 1 : 0}|${x.chorusSaved ? 1 : 0}|${x.resolvedUrl ?? ""}`)
+        .join("||");
+      return prevSig === nextSig ? prev : nextRows;
+    });
+  }, []);
+
+  useEffect(() => {
+    void refreshSegmentMaterialHistory();
+    return () => {
+      const urls = segmentMaterialHistoryObjectUrlsRef.current;
+      segmentMaterialHistoryObjectUrlsRef.current = [];
+      for (const u of urls) URL.revokeObjectURL(u);
+    };
+  }, [refreshSegmentMaterialHistory]);
+
+  const saveSegmentMaterialToHistory = useCallback(
+    async (args: {
+      imageUrl?: string;
+      imageBlob?: Blob;
+      editSettings?: SegmentMaterialEditSettings;
+      favorite?: boolean;
+      chorusSaved?: boolean;
+      title?: string;
+      imageId?: string;
+    }) => {
+      const saved = await upsertSegmentMaterialHistory(args);
+      await refreshSegmentMaterialHistory();
+      return saved;
+    },
+    [refreshSegmentMaterialHistory]
+  );
+
+  /** 現在区間へ、ひとつ前の区間で使っている画像と関連設定をコピー */
+  const copyPreviousSegmentImageToCurrent = useCallback((segIndex: number) => {
+    if (segIndex <= 0) return;
+    const prevIndex = segIndex - 1;
+    const prevImageUrl = (segmentImageUrls[prevIndex] ?? "").trim();
+    if (!prevImageUrl) {
+      window.alert("前の区間に画像がありません");
+      return;
+    }
+
+    setSegmentImageUrls((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push(undefined);
+      next[segIndex] = prevImageUrl;
+      return next;
+    });
+    setSegmentImageSourceKinds((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push(null);
+      next[segIndex] = segmentImageSourceKinds[prevIndex] ?? "uploaded";
+      return next;
+    });
+    setSegmentImageSelections((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push(null);
+      const s = segmentImageSelections[prevIndex];
+      next[segIndex] = s ? { ...s, searchTags: s.searchTags ? [...s.searchTags] : undefined } : null;
+      return next;
+    });
+    setSegmentMediaTypes((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push("none");
+      next[segIndex] = "image";
+      return next;
+    });
+    // 画像コピー時は動画を外す（排他）
+    setSegmentVideoUrls((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push(undefined);
+      const old = next[segIndex];
+      if (old?.startsWith("blob:")) URL.revokeObjectURL(old);
+      next[segIndex] = undefined;
+      return next;
+    });
+    setSegmentVideoStartSec((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push(0);
+      next[segIndex] = 0;
+      return next;
+    });
+    setSegmentVideoEndSec((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push(undefined);
+      next[segIndex] = undefined;
+      return next;
+    });
+
+    // 合成・オーバーレイ設定もコピー
+    setSegmentCompositeEnabled((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push(false);
+      next[segIndex] = segmentCompositeEnabled[prevIndex] ?? false;
+      return next;
+    });
+    setSegmentCompositeModes((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push("none");
+      next[segIndex] = segmentCompositeModes[prevIndex] ?? "none";
+      return next;
+    });
+    setSegmentMosaicRegions((prev) => {
+      const next = prev.map((row) => row.map((r) => ({ ...r })));
+      while (next.length <= segIndex) next.push([]);
+      next[segIndex] = (segmentMosaicRegions[prevIndex] ?? []).map((r) => ({ ...r }));
+      return next;
+    });
+    setSegmentMosaicSelectedId((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push(null);
+      next[segIndex] = segmentMosaicSelectedId[prevIndex] ?? null;
+      return next;
+    });
+    setSegmentBrandMaskRegions((prev) => {
+      const next = prev.map((row) => row.map((r) => ({ ...r })));
+      while (next.length <= segIndex) next.push([]);
+      next[segIndex] = (segmentBrandMaskRegions[prevIndex] ?? []).map((r) => ({ ...r }));
+      return next;
+    });
+    setSegmentBrandMaskSelectedId((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push(null);
+      next[segIndex] = segmentBrandMaskSelectedId[prevIndex] ?? null;
+      return next;
+    });
+    setSegmentOverlayImageUrls((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push(undefined);
+      next[segIndex] = segmentOverlayImageUrls[prevIndex];
+      return next;
+    });
+    setSegmentOverlayTexts((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push("");
+      next[segIndex] = segmentOverlayTexts[prevIndex] ?? "";
+      return next;
+    });
+    setSegmentOverlayOpacity((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push(0.85);
+      next[segIndex] = segmentOverlayOpacity[prevIndex] ?? 0.85;
+      return next;
+    });
+    setSegmentOverlayScaleX((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push(1);
+      next[segIndex] = segmentOverlayScaleX[prevIndex] ?? 1;
+      return next;
+    });
+    setSegmentOverlayScaleY((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push(1);
+      next[segIndex] = segmentOverlayScaleY[prevIndex] ?? 1;
+      return next;
+    });
+    setSegmentOverlayPosition((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push("center");
+      next[segIndex] = segmentOverlayPosition[prevIndex] ?? "center";
+      return next;
+    });
+    setSegmentOverlayX((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push(0);
+      next[segIndex] = segmentOverlayX[prevIndex] ?? 0;
+      return next;
+    });
+    setSegmentOverlayY((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push(0);
+      next[segIndex] = segmentOverlayY[prevIndex] ?? 0;
+      return next;
+    });
+    setSegmentMediaObjectFit((prev) => {
+      const next = [...prev];
+      while (next.length <= segIndex) next.push("cover");
+      next[segIndex] = segmentMediaObjectFit[prevIndex] ?? "cover";
+      return next;
+    });
+  }, [
+    segmentImageUrls,
+    segmentImageSourceKinds,
+    segmentImageSelections,
+    segmentCompositeEnabled,
+    segmentCompositeModes,
+    segmentMosaicRegions,
+    segmentMosaicSelectedId,
+    segmentBrandMaskRegions,
+    segmentBrandMaskSelectedId,
+    segmentOverlayImageUrls,
+    segmentOverlayTexts,
+    segmentOverlayOpacity,
+    segmentOverlayScaleX,
+    segmentOverlayScaleY,
+    segmentOverlayPosition,
+    segmentOverlayX,
+    segmentOverlayY,
+    segmentMediaObjectFit,
+  ]);
+
+  const applyMaterialHistoryToSegment = useCallback(
+    async (segIndex: number, row: SegmentMaterialHistoryEntry & { resolvedUrl?: string }) => {
+      const url = row.resolvedUrl ?? row.imageUrl ?? (await resolveSegmentMaterialHistoryUrl(row)) ?? "";
+      if (!url) {
+        window.alert("素材を復元できませんでした");
+        return;
+      }
+      setSegmentImage(segIndex, url, "uploaded", {
+        materialHistoryId: row.imageId,
+        imageEditSettings: row.editSettings,
+        selectedAt: new Date().toISOString(),
+      });
+      patchSegmentMaterialHistory(row.imageId, {});
+      await refreshSegmentMaterialHistory();
+    },
+    [refreshSegmentMaterialHistory]
+  );
 
   /** モーダル候補グリッド用: 現在の区間画像と同一候補か */
   function isModalSuggestImageSelected(
@@ -5596,6 +5859,22 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                 >
                   {t("next")}
                 </button>
+                {(() => {
+                  const canUsePrev =
+                    previewRowIndex! > 0 &&
+                    Boolean((segmentImageUrls[previewRowIndex! - 1] ?? "").trim());
+                  return (
+                    <button
+                      type="button"
+                      disabled={!canUsePrev}
+                      onClick={() => copyPreviousSegmentImageToCurrent(previewRowIndex!)}
+                      style={{ padding: "4px 12px", opacity: canUsePrev ? 1 : 0.45 }}
+                      title="前の区間の画像と設定をコピー"
+                    >
+                      前の画像を使う
+                    </button>
+                  );
+                })()}
               </div>
               <div style={{ flex: 1, minWidth: 160 }}>
                 <strong style={{ display: "block", fontSize: 16 }}>
@@ -7537,6 +7816,18 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                         </button>
                         <button
                           type="button"
+                          onClick={() => setModalImagePickerTab("recent")}
+                          style={{
+                            padding: "6px 12px",
+                            background: modalImagePickerTab === "recent" ? "#e3f2fd" : "#fff",
+                            border: "1px solid #ccc",
+                            borderRadius: 4,
+                          }}
+                        >
+                          最近使った素材
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setModalImagePickerTab("uploadedVideo")}
                           style={{
                             padding: "6px 12px",
@@ -7560,15 +7851,45 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                       </div>
 
                       {hasVisualMedia ? (
-                        <div style={{ fontSize: 11, color: "#555", marginBottom: 8 }}>
-                          選択中:{" "}
-                          {effectiveMt === "video"
-                            ? "自分の動画"
-                            : kind === "uploaded"
-                              ? "自分の画像"
-                              : kind === "suggested"
-                                ? "候補画像"
-                                : "画像"}
+                        <div style={{ fontSize: 11, color: "#555", marginBottom: 8, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                          <span>
+                            選択中:{" "}
+                            {effectiveMt === "video"
+                              ? "自分の動画"
+                              : kind === "uploaded"
+                                ? "自分の画像"
+                                : kind === "suggested"
+                                  ? "候補画像"
+                                  : "画像"}
+                          </span>
+                          {(() => {
+                            const historyId = segmentImageSelections[pi]?.materialHistoryId;
+                            if (!historyId) return null;
+                            return (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    patchSegmentMaterialHistory(historyId, { chorusSaved: true });
+                                    void refreshSegmentMaterialHistory();
+                                  }}
+                                  style={{ padding: "2px 8px", fontSize: 11 }}
+                                >
+                                  サビ用に保存
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    patchSegmentMaterialHistory(historyId, { favorite: true });
+                                    void refreshSegmentMaterialHistory();
+                                  }}
+                                  style={{ padding: "2px 8px", fontSize: 11 }}
+                                >
+                                  お気に入り登録
+                                </button>
+                              </>
+                            );
+                          })()}
                         </div>
                       ) : null}
                       {hasVisualMedia ? (
@@ -8151,7 +8472,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                             )
                                           )?.sourceType ?? "suggested"
                                         : "suggested";
-                                    setSegmentImage(previewRowIndex, full, kind, {
+                                    const selectionCtx = {
                                       lyricText: (segmentTexts[previewRowIndex] ?? "").trim(),
                                       searchKeywords:
                                         committedImageSearchQuery.trim() ||
@@ -8169,6 +8490,21 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                           ? `https://pixabay.com/photos/id-${img.id}/`
                                           : undefined,
                                       selectedAt: new Date().toISOString(),
+                                    };
+                                    setSegmentImage(previewRowIndex, full, kind, selectionCtx);
+                                    void saveSegmentMaterialToHistory({
+                                      imageUrl: full,
+                                      title: `区間 ${previewRowIndex + 1}`,
+                                    }).then((saved) => {
+                                      if (!saved) return;
+                                      setSegmentImageSelections((prev) => {
+                                        const next = [...prev];
+                                        while (next.length <= previewRowIndex) next.push(null);
+                                        const cur = next[previewRowIndex];
+                                        if (!cur) return prev;
+                                        next[previewRowIndex] = { ...cur, materialHistoryId: saved.imageId };
+                                        return next;
+                                      });
                                     });
                                   }}
                                 />
@@ -8267,7 +8603,14 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                 onClick={() => {
                                   if (previewRowIndex == null) return;
                                   offerLocalUploadHintThen(() => {
-                                    setSegmentImage(previewRowIndex, modalUploadPick.file, "uploaded");
+                                    void saveSegmentMaterialToHistory({
+                                      imageBlob: modalUploadPick.file,
+                                      title: `区間 ${previewRowIndex + 1}`,
+                                    }).then((saved) => {
+                                      setSegmentImage(previewRowIndex, modalUploadPick.file, "uploaded", {
+                                        materialHistoryId: saved?.imageId,
+                                      });
+                                    });
                                     clearModalUploadPick();
                                   });
                                 }}
@@ -8381,18 +8724,32 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             <ImageCropEditor
                               imageUrl={modalCropPick.url}
                               maxFrameWidth={360}
-                              onApplyBackground={(file) => {
+                              onApplyBackground={(file, settings) => {
                                 if (previewRowIndex == null) return;
                                 offerLocalUploadHintThen(() => {
-                                  setSegmentImage(previewRowIndex, file, "uploaded");
+                                  void saveSegmentMaterialToHistory({
+                                    imageBlob: file,
+                                    editSettings: settings,
+                                    title: `区間 ${previewRowIndex + 1}`,
+                                  }).then((saved) => {
+                                    setSegmentImage(previewRowIndex, file, "uploaded", {
+                                      materialHistoryId: saved?.imageId,
+                                      imageEditSettings: settings,
+                                    });
+                                  });
                                   clearModalCropPick();
                                   setModalImagePickerTab("uploaded");
                                 });
                               }}
-                              onApplyOverlay={(file) => {
+                              onApplyOverlay={(file, settings) => {
                                 if (previewRowIndex == null) return;
                                 offerLocalUploadHintThen(() => {
                                   setSegmentOverlayImage(previewRowIndex, file);
+                                  void saveSegmentMaterialToHistory({
+                                    imageBlob: file,
+                                    editSettings: { ...settings, applyMode: "overlay" },
+                                    title: `区間 ${previewRowIndex + 1} overlay`,
+                                  });
                                   clearModalCropPick();
                                   setModalImagePickerTab("uploaded");
                                 });
@@ -8402,6 +8759,113 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             <p style={{ fontSize: 12, color: "#64748b", margin: 0, lineHeight: 1.5 }}>
                               比率・拡大・回転を調整してから保存できます。スマホはドラッグで位置を変えられます。
                             </p>
+                          )}
+                        </div>
+                      ) : modalImagePickerTab === "recent" ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 10,
+                            alignItems: "stretch",
+                            width: "100%",
+                            maxWidth: 420,
+                          }}
+                        >
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (previewRowIndex == null) return;
+                                void refreshSegmentMaterialHistory();
+                              }}
+                              style={{ padding: "6px 12px", fontSize: 12 }}
+                            >
+                              最新に更新
+                            </button>
+                            {previewRowIndex != null ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const row = segmentImageSelections[previewRowIndex];
+                                  if (!row?.materialHistoryId) {
+                                    window.alert("先に画像を適用してください");
+                                    return;
+                                  }
+                                  patchSegmentMaterialHistory(row.materialHistoryId, { chorusSaved: true });
+                                  void refreshSegmentMaterialHistory();
+                                }}
+                                style={{ padding: "6px 12px", fontSize: 12 }}
+                              >
+                                サビ用に保存
+                              </button>
+                            ) : null}
+                            {previewRowIndex != null ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const row = segmentImageSelections[previewRowIndex];
+                                  if (!row?.materialHistoryId) {
+                                    window.alert("先に画像を適用してください");
+                                    return;
+                                  }
+                                  patchSegmentMaterialHistory(row.materialHistoryId, { favorite: true });
+                                  void refreshSegmentMaterialHistory();
+                                }}
+                                style={{ padding: "6px 12px", fontSize: 12 }}
+                              >
+                                お気に入り登録
+                              </button>
+                            ) : null}
+                          </div>
+                          {segmentMaterialHistory.length === 0 ? (
+                            <div style={{ fontSize: 12, color: "#64748b" }}>
+                              まだ履歴がありません。画像を適用するとここに保存されます。
+                            </div>
+                          ) : (
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(128px, 1fr))", gap: 10 }}>
+                              {segmentMaterialHistory.map((row) => {
+                                const url = row.resolvedUrl ?? row.imageUrl ?? "";
+                                const canApply = url.trim() !== "" && previewRowIndex != null;
+                                return (
+                                  <button
+                                    key={row.imageId}
+                                    type="button"
+                                    disabled={!canApply}
+                                    onClick={() => {
+                                      if (!canApply || previewRowIndex == null) return;
+                                      void applyMaterialHistoryToSegment(previewRowIndex, row);
+                                    }}
+                                    style={{
+                                      border: "1px solid #d6dce5",
+                                      borderRadius: 8,
+                                      padding: 6,
+                                      background: "#fff",
+                                      textAlign: "left",
+                                      opacity: canApply ? 1 : 0.5,
+                                      cursor: canApply ? "pointer" : "not-allowed",
+                                    }}
+                                  >
+                                    {url ? (
+                                      <img
+                                        src={url}
+                                        alt=""
+                                        loading="lazy"
+                                        decoding="async"
+                                        style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", borderRadius: 6, marginBottom: 6 }}
+                                      />
+                                    ) : (
+                                      <div style={{ width: "100%", aspectRatio: "1 / 1", borderRadius: 6, background: "#e2e8f0", marginBottom: 6 }} />
+                                    )}
+                                    <div style={{ fontSize: 11, color: "#334155", lineHeight: 1.4 }}>
+                                      {row.chorusSaved ? "🎵サビ " : ""}
+                                      {row.favorite ? "★お気に入り " : ""}
+                                      {new Date(row.lastUsedAt).toLocaleString("ja-JP")}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
                           )}
                         </div>
                       ) : (
@@ -8733,6 +9197,22 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                     >
                       {t("next")}
                     </button>
+                    {(() => {
+                      const canUsePrev =
+                        previewRowIndex! > 0 &&
+                        Boolean((segmentImageUrls[previewRowIndex! - 1] ?? "").trim());
+                      return (
+                        <button
+                          type="button"
+                          disabled={!canUsePrev}
+                          onClick={() => copyPreviousSegmentImageToCurrent(previewRowIndex!)}
+                          style={{ padding: "4px 12px", opacity: canUsePrev ? 1 : 0.45 }}
+                          title="前の区間の画像と設定をコピー"
+                        >
+                          前の画像を使う
+                        </button>
+                      );
+                    })()}
                     <button type="button" onClick={() => setPreviewRowIndex(null)} style={{ padding: "4px 12px" }}>
                       {t("close")}
                     </button>

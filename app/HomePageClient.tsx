@@ -1,23 +1,44 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
 import { readFetchJson } from "@/lib/http/readFetchJson";
+import { isHomeImageFile, isHomeVideoFile } from "@/lib/homeMediaKinds";
+import { putPendingHomeImage } from "@/lib/homePendingImageIdb";
 import {
   formatBytes,
   MAX_VIDEO_UPLOAD_BYTES,
 } from "@/lib/upload/videoUpload";
 import { generateOwnerSecret, setVideoOwnerSecret } from "@/lib/videoOwnerToken";
 
+const FILE_INPUT_ACCEPT =
+  "image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm,.png,.jpg,.jpeg,.webp,.mp4,.mov,.webm";
+
 export default function HomePageClient() {
+  const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!file || !isHomeVideoFile(file)) {
+      setVideoPreviewUrl(null);
+      return undefined;
+    }
+    const url = URL.createObjectURL(file);
+    setVideoPreviewUrl(url);
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [file]);
 
   async function handleUploadAndNext() {
     if (!file) return;
+    if (!isHomeVideoFile(file)) return;
     if (file.size > MAX_VIDEO_UPLOAD_BYTES) {
       setError(
         `ファイルサイズが大きすぎます（最大 ${formatBytes(MAX_VIDEO_UPLOAD_BYTES)}）。`
@@ -101,13 +122,36 @@ export default function HomePageClient() {
       <input
         ref={inputRef}
         type="file"
-        accept="video/*,.mp4"
+        accept={FILE_INPUT_ACCEPT}
         onChange={(e) => {
-          setFile(e.target.files?.[0] ?? null);
           setError(null);
+          const picked = e.target.files?.[0] ?? null;
+          if (!picked) {
+            setFile(null);
+            return;
+          }
+          if (isHomeImageFile(picked)) {
+            setFile(null);
+            void (async () => {
+              try {
+                await putPendingHomeImage(picked);
+              } catch {
+                // 失敗時もデモへ（手動で選び直せる）
+              }
+              router.push("/demo/eating");
+            })();
+            e.target.value = "";
+            return;
+          }
+          if (isHomeVideoFile(picked)) {
+            setFile(picked);
+            return;
+          }
+          setFile(null);
+          e.target.value = "";
         }}
         style={{ position: "absolute", width: 1, height: 1, opacity: 0, overflow: "hidden" }}
-        aria-label="動画ファイルを選択"
+        aria-label="画像 or 動画を選択"
       />
 
       <button
@@ -123,8 +167,12 @@ export default function HomePageClient() {
           background: "#fff",
         }}
       >
-        {file ? "別のファイルを選択" : "ファイルを選択"}
+        {file ? "別のファイルを選択" : "画像 or 動画を選択"}
       </button>
+
+      <p style={{ marginTop: 12, fontSize: 13, color: "#666" }}>
+        画像: PNG / JPG / WebP（キャラプレビューへ）／ 動画: MP4 / MOV / WEBM（編集へアップロード）
+      </p>
 
       {file && (
         <div style={{ marginTop: 24, padding: 16, border: "1px solid #ddd", borderRadius: 8 }}>
@@ -135,7 +183,9 @@ export default function HomePageClient() {
             {formatBytes(MAX_VIDEO_UPLOAD_BYTES)}
           </p>
           <div style={{ marginTop: 12 }}>
-            <video width={320} controls src={URL.createObjectURL(file)} />
+            {videoPreviewUrl ? (
+              <video width={320} controls src={videoPreviewUrl} />
+            ) : null}
           </div>
           <div style={{ marginTop: 20, display: "flex", gap: 12, flexWrap: "wrap" }}>
             <button
@@ -159,7 +209,7 @@ export default function HomePageClient() {
         </div>
       )}
 
-      {error && (
+      {error && file && (
         <div style={{ marginTop: 16, padding: 12, color: "#c00", background: "#fff0f0", borderRadius: 8 }}>
           {error}
         </div>
