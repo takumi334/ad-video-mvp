@@ -7012,7 +7012,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                               }}
                               style={{ padding: "2px 8px", fontSize: 10, borderRadius: 4, border: "1px solid #ccc" }}
                             >
-                              ＋追加
+                              {t("add")}
                             </button>
                             <button
                               type="button"
@@ -7039,7 +7039,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                               }}
                               style={{ padding: "2px 8px", fontSize: 10, borderRadius: 4, border: "1px solid #ccc" }}
                             >
-                              選択を削除
+                              {t("removeSelected")}
                             </button>
                           </div>
                           {(() => {
@@ -7050,7 +7050,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             return (
                               <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
                                 <label style={{ fontSize: 11, color: "#555", display: "flex", alignItems: "center", gap: 4 }}>
-                                  モザイクの透明度
+                                  {t("mosaicOpacity")}
                                   <input
                                     type="range"
                                     min={0}
@@ -7064,7 +7064,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                   />
                                 </label>
                                 <label style={{ fontSize: 11, color: "#555", display: "flex", alignItems: "center", gap: 4 }}>
-                                  強度（ブロック）
+                                  {t("mosaicStrength")}
                                   <input
                                     type="range"
                                     min={5}
@@ -7078,7 +7078,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                   />
                                 </label>
                                 <label style={{ fontSize: 11, color: "#555", display: "flex", alignItems: "center", gap: 4 }}>
-                                  幅（%）
+                                  {t("widthPercent")}
                                   <input
                                     type="range"
                                     min={5}
@@ -7094,7 +7094,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                   />
                                 </label>
                                 <label style={{ fontSize: 11, color: "#555", display: "flex", alignItems: "center", gap: 4 }}>
-                                  高さ（%）
+                                  {t("heightPercent")}
                                   <input
                                     type="range"
                                     min={5}
@@ -7165,7 +7165,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                               }}
                               style={{ padding: "2px 8px", fontSize: 10, borderRadius: 4, border: "1px solid #ccc" }}
                             >
-                              ＋追加
+                              {t("add")}
                             </button>
                             <button
                               type="button"
@@ -7192,7 +7192,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                               }}
                               style={{ padding: "2px 8px", fontSize: 10, borderRadius: 4, border: "1px solid #ccc" }}
                             >
-                              選択を削除
+                              {t("removeSelected")}
                             </button>
                           </div>
                           {(() => {
@@ -7203,7 +7203,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             return (
                               <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
                                 <label style={{ fontSize: 11, color: "#555", display: "flex", alignItems: "center", gap: 4 }}>
-                                  黒の透明度
+                                  {t("blackMaskOpacity")}
                                   <input
                                     type="range"
                                     min={0}
@@ -7217,7 +7217,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                   />
                                 </label>
                                 <label style={{ fontSize: 11, color: "#555", display: "flex", alignItems: "center", gap: 4 }}>
-                                  幅（%）
+                                  {t("widthPercent")}
                                   <input
                                     type="range"
                                     min={5}
@@ -7233,7 +7233,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                   />
                                 </label>
                                 <label style={{ fontSize: 11, color: "#555", display: "flex", alignItems: "center", gap: 4 }}>
-                                  高さ（%）
+                                  {t("heightPercent")}
                                   <input
                                     type="range"
                                     min={5}
@@ -7291,7 +7291,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                           setNameMaskPreset((prev) => ({ ...prev, enabled: e.target.checked }))
                         }
                       />
-                      自動隠しを有効にする
+                      {t("nameMaskEnableAutoHide")}
                     </label>
                     <div
                       style={{
@@ -7313,7 +7313,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                           background: nameMaskPreset.applyScope === "all" ? "#fde68a" : "#fff",
                         }}
                       >
-                        全区間に適用
+                        {t("nameMaskApplyAll")}
                       </button>
                       <button
                         type="button"
@@ -7332,7 +7332,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                           background: nameMaskPreset.applyScope === "segment" ? "#fde68a" : "#fff",
                         }}
                       >
-                        この区間のみ
+                        {t("nameMaskApplyThisOnly")}
                       </button>
                       <span style={{ fontSize: 10, color: "#78716c" }}>
                         {nameMaskPreset.applyScope === "segment"
@@ -7352,7 +7352,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                         marginBottom: 8,
                       }}
                     >
-                      <span style={{ fontSize: 11, color: "#444" }}>隠し方</span>
+                      <span style={{ fontSize: 11, color: "#444" }}>{t("nameMaskMethodLabel")}</span>
                       <select
                         value={nameMaskPreset.defaultMode}
                         onChange={(e) => {
@@ -7361,8 +7361,8 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                         }}
                         style={{ padding: "3px 6px", fontSize: 11, minWidth: 200 }}
                       >
-                        <option value="mosaic">mosaic（ピクセル）</option>
-                        <option value="blackMaskWithBrand">黒塗り＋gegenpress app</option>
+                        <option value="mosaic">{t("nameMaskModeMosaicOption")}</option>
+                        <option value="blackMaskWithBrand">{t("nameMaskModeBlackMaskBrandOption")}</option>
                       </select>
                     </div>
                     <div
@@ -7377,7 +7377,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                     >
                       <span style={{ fontWeight: 600, fontSize: 10, color: "#92400e" }}>{t("nameRectLabel")}</span>
                       <label style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        左 X
+                        {t("leftX")}
                         <input
                           type="range"
                           min={0}
@@ -7398,7 +7398,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                         {Math.round(nameMaskPreset.nameArea.xPct)}%
                       </label>
                       <label style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        上 Y
+                        {t("topY")}
                         <input
                           type="range"
                           min={0}
@@ -7419,7 +7419,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                         {Math.round(nameMaskPreset.nameArea.yPct)}%
                       </label>
                       <label style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        幅
+                        {t("width")}
                         <input
                           type="range"
                           min={5}
@@ -7439,7 +7439,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                         {Math.round(nameMaskPreset.nameArea.wPct)}%
                       </label>
                       <label style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        高さ
+                        {t("height")}
                         <input
                           type="range"
                           min={5}
@@ -7502,7 +7502,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                     ) : (
                       <div style={{ marginBottom: 8, fontSize: 11 }}>
                         <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                          黒の透明度
+                          {t("blackMaskOpacity")}
                           <input
                             type="range"
                             min={0}
@@ -7558,7 +7558,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                           background: "#fff",
                         }}
                       >
-                        追加
+                        {t("add")}
                       </button>
                     </div>
                     {nameMaskPreset.rules.length === 0 ? (
@@ -7578,7 +7578,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                           <li key={r.id} style={{ marginBottom: 4 }}>
                             <span style={{ marginRight: 6 }}>{r.name}</span>
                             <span style={{ fontSize: 10, color: "#78716c" }}>
-                              ({r.mode === "mosaic" ? "mosaic" : "黒塗り"})
+                              ({r.mode === "mosaic" ? t("nameMaskModeMosaic") : t("nameMaskModeBlackMaskBrand")})
                             </span>
                             <button
                               type="button"
@@ -7788,7 +7788,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             borderRadius: 4,
                           }}
                         >
-                          候補画像
+                          {t("suggestedImagesTab")}
                         </button>
                         <button
                           type="button"
@@ -7800,7 +7800,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             borderRadius: 4,
                           }}
                         >
-                          自分の画像
+                          {t("myImagesTab")}
                         </button>
                         <button
                           type="button"
@@ -7812,7 +7812,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             borderRadius: 4,
                           }}
                         >
-                          アップロード＋編集
+                          {t("uploadAndEditTab")}
                         </button>
                         <button
                           type="button"
@@ -7824,7 +7824,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             borderRadius: 4,
                           }}
                         >
-                          最近使った素材
+                          {t("recentMaterialsTab")}
                         </button>
                         <button
                           type="button"
@@ -7836,7 +7836,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             borderRadius: 4,
                           }}
                         >
-                          自分の動画
+                          {t("myVideosTab")}
                         </button>
                         <span style={{ flex: 1, minWidth: 8 }} />
                         {hasVisualMedia ? (
@@ -7845,7 +7845,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             onClick={() => setModalImagePickerOpen(false)}
                             style={{ padding: "4px 10px", fontSize: 12 }}
                           >
-                            パネルを閉じる
+                            {t("closePanel")}
                           </button>
                         ) : null}
                       </div>
@@ -7853,14 +7853,14 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                       {hasVisualMedia ? (
                         <div style={{ fontSize: 11, color: "#555", marginBottom: 8, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                           <span>
-                            選択中:{" "}
+                            {t("selectedMaterialLabel")}{" "}
                             {effectiveMt === "video"
-                              ? "自分の動画"
+                              ? t("selectedMaterialVideo")
                               : kind === "uploaded"
-                                ? "自分の画像"
+                                ? t("selectedMaterialImageUploaded")
                                 : kind === "suggested"
-                                  ? "候補画像"
-                                  : "画像"}
+                                  ? t("selectedMaterialImageSuggested")
+                                  : t("selectedMaterialImage")}
                           </span>
                           {(() => {
                             const historyId = segmentImageSelections[pi]?.materialHistoryId;
@@ -8035,7 +8035,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                       }}
                                       style={{ padding: "4px 10px", fontSize: 12, borderRadius: 4, border: "1px solid #ccc" }}
                                     >
-                                      ＋矩形を追加
+                                      {t("addRectangle")}
                                     </button>
                                     <button
                                       type="button"
@@ -8062,7 +8062,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                       }}
                                       style={{ padding: "4px 10px", fontSize: 12, borderRadius: 4, border: "1px solid #ccc" }}
                                     >
-                                      選択を削除
+                                      {t("removeSelected")}
                                     </button>
                                   </div>
                                   {(() => {
@@ -8073,7 +8073,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                     return (
                                       <div style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center" }}>
                                         <label style={{ fontSize: 12, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
-                                          モザイクの透明度
+                                          {t("mosaicOpacity")}
                                           <input
                                             type="range"
                                             min={0}
@@ -8088,7 +8088,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                           <span>{mr.opacity.toFixed(2)}</span>
                                         </label>
                                         <label style={{ fontSize: 12, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
-                                          強度（ブロック 5〜40）
+                                          {t("mosaicStrength")} 5-40
                                           <input
                                             type="range"
                                             min={5}
@@ -8103,7 +8103,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                           <span>{mr.pixelSize}</span>
                                         </label>
                                         <label style={{ fontSize: 12, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
-                                          幅（%）
+                                          {t("widthPercent")}
                                           <input
                                             type="range"
                                             min={5}
@@ -8118,7 +8118,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                           <span>{Math.round(mr.wPct)}</span>
                                         </label>
                                         <label style={{ fontSize: 12, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
-                                          高さ（%）
+                                          {t("heightPercent")}
                                           <input
                                             type="range"
                                             min={5}
@@ -8162,7 +8162,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                             background: activeId === reg.id ? "#dbeafe" : "#fff",
                                           }}
                                         >
-                                          黒塗り #{idx + 1}
+                                          {t("blackMaskLabelPrefix")} #{idx + 1}
                                         </button>
                                       );
                                     })}
@@ -8185,7 +8185,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                       }}
                                       style={{ padding: "4px 10px", fontSize: 12, borderRadius: 4, border: "1px solid #ccc" }}
                                     >
-                                      ＋矩形を追加
+                                      {t("addRectangle")}
                                     </button>
                                     <button
                                       type="button"
@@ -8223,7 +8223,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                     return (
                                       <div style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center" }}>
                                         <label style={{ fontSize: 12, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
-                                          黒の透明度
+                                          {t("blackMaskOpacity")}
                                           <input
                                             type="range"
                                             min={0}
@@ -8238,7 +8238,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                           <span>{br.opacity.toFixed(2)}</span>
                                         </label>
                                         <label style={{ fontSize: 12, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
-                                          幅（%）
+                                          {t("widthPercent")}
                                           <input
                                             type="range"
                                             min={5}
@@ -8253,7 +8253,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                           <span>{Math.round(br.wPct)}</span>
                                         </label>
                                         <label style={{ fontSize: 12, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
-                                          高さ（%）
+                                          {t("heightPercent")}
                                           <input
                                             type="range"
                                             min={5}
@@ -8306,7 +8306,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                     handleModalSuggestSearchSubmit();
                                   }
                                 }}
-                                placeholder="検索語（例: urban city japanese）"
+                                placeholder={t("searchInputPlaceholder")}
                                 disabled={isSearchingImages}
                                 style={{
                                   width: "100%",
@@ -8317,12 +8317,12 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                   border: "1px solid #ccc",
                                   boxSizing: "border-box",
                                 }}
-                                title="入力中は検索しません。「検索」または Enter で取得します"
+                                title={t("searchInputNoNetworkTitle")}
                               />
                               {manualImageSearchInput ? (
                                 <button
                                   type="button"
-                                  aria-label="検索語をクリア"
+                                  aria-label={t("clearSearchTermsAria")}
                                   disabled={isSearchingImages}
                                   onClick={() => {
                                     setManualImageSearchInput("");
@@ -8358,7 +8358,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                               disabled={isSearchingImages}
                               style={{ padding: "6px 12px", fontSize: 12 }}
                             >
-                              検索
+                              {t("searchButton")}
                             </button>
                             <button
                               type="button"
@@ -8366,7 +8366,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                               disabled={isSearchingImages}
                               style={{ padding: "6px 12px", fontSize: 12 }}
                             >
-                              候補を再検索
+                              {t("searchRefreshCandidates")}
                             </button>
                           </div>
                           {imageSearchError ? (
@@ -8387,8 +8387,11 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             className="modal-suggest-image-scroll"
                             aria-label={
                               committedImageSearchQuery
-                                ? `画像候補（確定検索語: ${committedImageSearchQuery.slice(0, 80)}）`
-                                : "画像候補（未検索）"
+                                ? t("imageCandidatesWithCommittedQuery").replace(
+                                    "{q}",
+                                    committedImageSearchQuery.slice(0, 80)
+                                  )
+                                : t("imageCandidatesUnsearched")
                             }
                             style={{
                               minHeight: MODAL_SUGGEST_LIST_MIN_HEIGHT,
@@ -8416,24 +8419,24 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                                 borderRadius: 4,
                               }}
                             >
-                              検索中…（前回の候補を表示しています）
+                              {t("searchInProgressShowingPrevious")}
                             </div>
                           ) : null}
                           {isSearchingImages &&
                           imageSearchCandidates.length === 0 &&
                           modalSuggestDisplayCandidates.length === 0 ? (
                             <div style={{ textAlign: "center", fontSize: 13, padding: 12, color: "#666" }}>
-                              候補画像を検索中...
+                              {t("searchingImageCandidates")}
                             </div>
                           ) : null}
                           {!isSearchingImages &&
                           modalSuggestDisplayCandidates.length === 0 &&
                           !hasRequestedImageCandidates ? (
                             <div style={{ textAlign: "center", fontSize: 13, padding: 12, color: "#666" }}>
-                              「検索」または Enter で候補を表示します。
+                              {t("pressSearchOrEnterForCandidates")}
                               <br />
                               <span style={{ fontSize: 12, color: "#888" }}>
-                                入力中は通信しません（テザリング向け）。
+                                {t("noNetworkWhileTyping")}
                               </span>
                             </div>
                           ) : null}
@@ -8441,7 +8444,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                           modalSuggestDisplayCandidates.length === 0 &&
                           hasRequestedImageCandidates ? (
                             <div style={{ textAlign: "center", fontSize: 13, padding: 12, color: "#666" }}>
-                              該当する画像がありません
+                              {t("noMatchingImages")}
                             </div>
                           ) : null}
                           {modalSuggestDisplayCandidates.length > 0 ? (
@@ -9207,9 +9210,9 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                           disabled={!canUsePrev}
                           onClick={() => copyPreviousSegmentImageToCurrent(previewRowIndex!)}
                           style={{ padding: "4px 12px", opacity: canUsePrev ? 1 : 0.45 }}
-                          title="前の区間の画像と設定をコピー"
+                          title={t("copyPrevImageAndSettingsTitle")}
                         >
-                          前の画像を使う
+                          {t("usePreviousSegmentImage")}
                         </button>
                       );
                     })()}
@@ -9228,7 +9231,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
             return (
             <div style={{ width: 240, flexShrink: 0, borderLeft: "1px solid #e0e0e0", display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
               <div style={{ padding: "8px 12px", borderBottom: "1px solid #e8e8e8", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8, background: "#fafafa" }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#555" }}>フレーズキュー</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#555" }}>{t("phraseQueue")}</span>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
                   <button
                     type="button"
@@ -9238,10 +9241,10 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                     }}
                     onClick={(e) => handlePhraseClipboardCopy(e)}
                     disabled={phraseQueue.length === 0 || editingPhraseId == null}
-                    title="選択中のフレーズ（テキスト・区間時間・演出・リモート画像/動画URL）を内部バッファにコピー"
+                    title={t("phraseClipboardCopyTitle")}
                     style={{ padding: "2px 8px", fontSize: 11 }}
                   >
-                    フレーズコピー
+                    {t("phraseClipboardCopy")}
                   </button>
                   <button
                     type="button"
@@ -9251,21 +9254,21 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                     }}
                     onClick={(e) => handlePhraseClipboardPaste(e)}
                     disabled={phraseQueue.length === 0 || editingPhraseId == null || !phraseClipReady}
-                    title="内部バッファの内容を選択中フレーズに貼り付け（先にフレーズコピー）"
+                    title={t("phraseClipboardPasteTitle")}
                     style={{ padding: "2px 8px", fontSize: 11 }}
                   >
-                    フレーズ貼付
+                    {t("phraseClipboardPaste")}
                   </button>
-                  <button type="button" onClick={() => setOpenPhraseQueueInModal(null)} style={{ padding: "2px 8px", fontSize: 12 }}>閉じる</button>
+                  <button type="button" onClick={() => setOpenPhraseQueueInModal(null)} style={{ padding: "2px 8px", fontSize: 12 }}>{t("close")}</button>
                 </div>
                 {phraseClipReady ? (
                   <div style={{ width: "100%", fontSize: 11, color: "#2e7d32", marginTop: 2 }}>
-                    コピー済み: <span style={{ wordBreak: "break-all" }}>{phraseClipSummary}</span>
+                    {t("phraseCopiedToBuffer")} <span style={{ wordBreak: "break-all" }}>{phraseClipSummary}</span>
                   </div>
                 ) : null}
               </div>
               <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 8 }}>
-                <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>クリックで歌詞欄の末尾に追記 / ダブルクリックでも追記</div>
+                <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>{t("phraseQueueAppendHint")}</div>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                   {phraseQueue.map((item, i) => {
                     const isPhraseActive = item.id === editingPhraseId;
