@@ -4,6 +4,7 @@ import "./globals.css";
 import { AppProviders } from "./providers";
 import { SoftwareApplicationJsonLd } from "./SoftwareApplicationJsonLd";
 import { getSiteUrl, PRODUCTION_SITE_ORIGIN } from "@/lib/site";
+import { GlobalLocaleSelect } from "@/components/i18n/GlobalLocaleSelect";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -78,7 +79,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <SoftwareApplicationJsonLd />
-        <AppProviders>{children}</AppProviders>
+        <AppProviders>
+          <GlobalLocaleSelect />
+          {children}
+        </AppProviders>
       </body>
     </html>
   );

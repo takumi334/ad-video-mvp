@@ -1,44 +1,54 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { getServerUiLocale } from "@/lib/i18n/serverUiLocale";
 import { prisma } from "@/lib/prisma";
 import { VideoListClient } from "./VideoListClient";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "動画一覧",
-  description:
-    "アップロードした動画の一覧です。各動画から歌詞同期・編集、歌詞動画づくりやMV下準備に進めます。",
-  alternates: { canonical: "/videos" },
-  openGraph: {
-    title: "動画一覧｜歌ってみた動画編集（無料）",
-    description: "保存した動画を選び、歌詞タイミング編集へ進みます。",
-    url: "/videos",
-  },
-  twitter: {
-    card: "summary",
-    title: "動画一覧｜歌ってみた動画編集（無料）",
-    description: "動画一覧から歌詞同期・編集を再開できます。",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerUiLocale();
+  const titleByLocale: Record<string, string> = {
+    ja: "動画一覧",
+    en: "Videos",
+    es: "Videos",
+    pt: "Vídeos",
+    id: "Video",
+    th: "วิดีโอ",
+    ko: "동영상",
+  };
+  const descByLocale: Record<string, string> = {
+    ja: "アップロードした動画の一覧です。歌詞同期編集へ進めます。",
+    en: "List of uploaded videos and links to the lyrics sync editor.",
+    es: "Lista de videos subidos con acceso al editor de sincronización.",
+    pt: "Lista de vídeos enviados com acesso ao editor de sincronização.",
+    id: "Daftar video yang diunggah dengan tautan ke editor sinkronisasi lirik.",
+    th: "รายการวิดีโอที่อัปโหลดพร้อมลิงก์ไปยังหน้าซิงก์เนื้อเพลง",
+    ko: "업로드한 동영상 목록과 가사 싱크 편집 링크입니다.",
+  };
+  const title = titleByLocale[locale] ?? titleByLocale.en;
+  const description = descByLocale[locale] ?? descByLocale.en;
+  return {
+    title,
+    description,
+    alternates: { canonical: "/videos" },
+    openGraph: {
+      title: `${title} | Gegenpress`,
+      description,
+      url: "/videos",
+    },
+    twitter: {
+      card: "summary",
+      title: `${title} | Gegenpress`,
+      description,
+    },
+  };
+}
 
 export default async function VideosPage() {
   const videos = await prisma.video.findMany({
     orderBy: { createdAt: "desc" },
   });
 
-  return (
-    <div style={{ padding: 24 }}>
-      <nav style={{ marginBottom: 16 }}>
-        <Link href="/" style={{ marginRight: 12 }}>トップ</Link>
-        <Link href="/materials">素材検索</Link>
-      </nav>
-      <h1>Videos</h1>
-      <p style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>
-        動画をクリックして「歌詞同期」から編集・画像検索（Pixabay）ができます。
-      </p>
-      <VideoListClient videos={videos} />
-    </div>
-  );
+  return <VideoListClient videos={videos} />;
 }
 

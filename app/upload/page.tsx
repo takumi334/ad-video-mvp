@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { upload } from "@vercel/blob/client";
 import { readFetchJson } from "@/lib/http/readFetchJson";
+import { useUiLocale } from "@/lib/i18n/UiLocaleProvider";
 import {
   formatBytes,
   MAX_VIDEO_UPLOAD_BYTES,
@@ -18,6 +19,7 @@ const ACCEPT =
   ".mp4,.webm,.mov,video/mp4,video/webm,video/quicktime" as const;
 
 export default function UploadPage() {
+  const { t } = useUiLocale();
   const router = useRouter();
   const inputId = useId();
   const [file, setFile] = useState<File | null>(null);
@@ -29,7 +31,7 @@ export default function UploadPage() {
     if (!file) return;
     if (file.size > MAX_VIDEO_UPLOAD_BYTES) {
       setError(
-        `File is too large. Upload limit is ${formatBytes(MAX_VIDEO_UPLOAD_BYTES)}.`
+        t("uploadFileTooLarge").replace("{size}", formatBytes(MAX_VIDEO_UPLOAD_BYTES))
       );
       return;
     }
@@ -51,7 +53,7 @@ export default function UploadPage() {
       if (!configParsed.data?.ok) {
         setError(
           configParsed.data?.message ??
-            "Upload configuration error. Please try again."
+            t("uploadConfigError")
         );
         return;
       }
@@ -78,7 +80,7 @@ export default function UploadPage() {
       }>(res);
 
       if (!parsed.ok) {
-        setError(parsed.message ?? "Something went wrong.");
+        setError(parsed.message ?? t("uploadSomethingWrong"));
         return;
       }
 
@@ -86,7 +88,7 @@ export default function UploadPage() {
       if (!json?.ok) {
         setError(
           json?.message ??
-            "Upload failed. Please try again."
+            t("uploadFailed")
         );
         return;
       }
@@ -97,17 +99,13 @@ export default function UploadPage() {
         router.push(`/videos/${video.id}/sync`);
         return;
       }
-      setError("Server response was missing video id.");
+      setError(t("uploadMissingVideoId"));
     } catch (e) {
       if (
         e instanceof Error &&
         e.message.includes("FUNCTION_PAYLOAD_TOO_LARGE")
       ) {
-        setError(
-          `Video is too large to upload (max ${formatBytes(
-            MAX_VIDEO_UPLOAD_BYTES
-          )}).`
-        );
+        setError(t("uploadVideoTooLarge").replace("{size}", formatBytes(MAX_VIDEO_UPLOAD_BYTES)));
       } else {
         setError(
           e instanceof Error ? e.message : "An error occurred while uploading."
@@ -122,21 +120,21 @@ export default function UploadPage() {
     <div className="mx-auto max-w-2xl px-5 py-10 sm:px-8">
       <nav className="mb-8 flex flex-wrap gap-x-4 gap-y-2 text-sm text-neutral-600">
         <Link href="/" className="underline-offset-4 hover:underline">
-          Home
+          {t("navTop")}
         </Link>
         <Link href="/videos" className="underline-offset-4 hover:underline">
-          Videos
+          {t("navVideos")}
         </Link>
       </nav>
 
       <h1 className="mb-2 text-2xl font-semibold tracking-tight text-neutral-900">
-        Video upload
+        {t("uploadTitle")}
       </h1>
       <p className="mb-1 text-sm text-neutral-500">
-        Upload limit: {formatBytes(MAX_VIDEO_UPLOAD_BYTES)}
+        {t("uploadLimitLabel")} {formatBytes(MAX_VIDEO_UPLOAD_BYTES)}
       </p>
       <p className="mb-10 text-sm text-neutral-500">
-        Supported formats: MP4, WebM, MOV
+        {t("uploadSupportedFormats")}
       </p>
 
       <form onSubmit={onSubmit} className="space-y-8">
@@ -155,7 +153,7 @@ export default function UploadPage() {
               isUploading ? "pointer-events-none opacity-50" : ""
             }`}
           >
-            Choose video file
+            {t("uploadChooseFile")}
           </label>
 
           <p
@@ -167,7 +165,7 @@ export default function UploadPage() {
             {file ? (
               <span className="break-all font-medium">{file.name}</span>
             ) : (
-              "No file selected"
+              t("uploadNoFile")
             )}
           </p>
 
@@ -176,13 +174,13 @@ export default function UploadPage() {
             disabled={isUploading || !file}
             className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg bg-neutral-900 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-400 sm:w-auto"
           >
-            {isUploading ? "Uploading…" : "Upload video"}
+            {isUploading ? t("uploadUploading") : t("uploadUploadButton")}
           </button>
         </div>
 
         {file && (
           <p className="text-sm text-neutral-500">
-            File size: {formatBytes(file.size)}
+            {t("uploadFileSizeLabel")} {formatBytes(file.size)}
           </p>
         )}
       </form>
@@ -192,7 +190,7 @@ export default function UploadPage() {
           className="mt-8 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
           role="alert"
         >
-          <span className="font-medium">Error: </span>
+          <span className="font-medium">{t("uploadErrorPrefix")} </span>
           {error}
         </div>
       )}

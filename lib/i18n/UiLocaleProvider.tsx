@@ -42,7 +42,10 @@ export function UiLocaleProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(UI_LOCALE_STORAGE_KEY);
-      if (raw && isUiLocale(raw)) setLocaleState(raw);
+      if (raw && isUiLocale(raw)) {
+        setLocaleState(raw);
+        document.cookie = `ui_locale=${raw}; path=/; max-age=31536000; samesite=lax`;
+      }
     } catch {
       /* ignore */
     }
@@ -52,6 +55,7 @@ export function UiLocaleProvider({ children }: { children: ReactNode }) {
     setLocaleState(l);
     try {
       localStorage.setItem(UI_LOCALE_STORAGE_KEY, l);
+      document.cookie = `ui_locale=${l}; path=/; max-age=31536000; samesite=lax`;
     } catch {
       /* ignore */
     }

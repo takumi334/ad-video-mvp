@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { getServerUiLocale } from "@/lib/i18n/serverUiLocale";
 import { notFound } from "next/navigation";
-import { LyricsSyncClient } from "./sync/LyricsSyncClient";
-import { SyncPageNav } from "./sync/SyncPageNav";
+import { VideoEditPageClient } from "./VideoEditPageClient";
 
 export async function generateMetadata({
   params,
@@ -12,12 +11,32 @@ export async function generateMetadata({
   const { id } = await params;
   const videoId = Number(id);
   if (!Number.isInteger(videoId) || videoId <= 0) {
-    return { title: "動画が見つかりません" };
+    return { title: "Video not found" };
   }
-  const short = `動画 #${videoId}`;
+  const locale = await getServerUiLocale();
+  const titlePrefix: Record<string, string> = {
+    ja: "動画",
+    en: "Video",
+    es: "Video",
+    pt: "Vídeo",
+    id: "Video",
+    th: "วิดีโอ",
+    ko: "동영상",
+  };
+  const descByLocale: Record<string, string> = {
+    ja: `動画（ID: ${videoId}）の歌詞同期・編集画面です。`,
+    en: `Lyrics sync and edit screen for video ID ${videoId}.`,
+    es: `Pantalla de sincronización y edición para el video ID ${videoId}.`,
+    pt: `Tela de sincronização e edição para o vídeo ID ${videoId}.`,
+    id: `Layar sinkronisasi lirik dan edit untuk video ID ${videoId}.`,
+    th: `หน้าซิงก์เนื้อเพลงและแก้ไขสำหรับวิดีโอ ID ${videoId}`,
+    ko: `동영상 ID ${videoId}의 가사 싱크 및 편집 화면입니다.`,
+  };
+  const prefix = titlePrefix[locale] ?? titlePrefix.en;
+  const description = descByLocale[locale] ?? descByLocale.en;
   return {
-    title: short,
-    description: `動画（ID: ${videoId}）の歌詞同期・編集画面です。歌ってみた向けにタイミング調整や歌詞動画の作成を行えます。`,
+    title: `${prefix} #${videoId}`,
+    description,
     robots: {
       index: false,
       follow: true,
@@ -28,14 +47,14 @@ export async function generateMetadata({
     },
     alternates: { canonical: `/videos/${videoId}` },
     openGraph: {
-      title: `${short}の編集｜歌ってみた動画編集（無料）`,
-      description: "歌詞のタイミング同期・区間編集ができます。",
+      title: `${prefix} #${videoId} | Gegenpress`,
+      description,
       url: `/videos/${videoId}`,
     },
     twitter: {
       card: "summary",
-      title: `${short}の編集｜歌ってみた動画編集（無料）`,
-      description: "歌詞同期・動画編集をブラウザで続けられます。",
+      title: `${prefix} #${videoId} | Gegenpress`,
+      description,
     },
   };
 }
@@ -51,12 +70,6 @@ export default async function VideoEditPage({
   if (!Number.isInteger(videoId) || videoId <= 0) notFound();
 
   return (
-    <div style={{ padding: 24 }}>
-      <p>
-        <Link href={`/videos/${videoId}/sync`}>歌詞同期ページへ戻る: /videos/{videoId}/sync</Link>
-      </p>
-      <SyncPageNav />
-      <LyricsSyncClient videoId={videoId} />
-    </div>
+    <VideoEditPageClient videoId={videoId} />
   );
 }

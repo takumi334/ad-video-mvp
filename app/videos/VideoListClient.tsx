@@ -1,7 +1,9 @@
 "use client";
 
 import { readFetchJson } from "@/lib/http/readFetchJson";
+import { useUiLocale } from "@/lib/i18n/UiLocaleProvider";
 import { getVideoOwnerSecret, ownerAuthHeaders } from "@/lib/videoOwnerToken";
+import Link from "next/link";
 import { useState } from "react";
 
 type Video = {
@@ -14,6 +16,7 @@ type Video = {
 };
 
 export function VideoListClient({ videos }: { videos: Video[] }) {
+  const { t } = useUiLocale();
   const [items, setItems] = useState(videos);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -21,7 +24,7 @@ export function VideoListClient({ videos }: { videos: Video[] }) {
   async function handleDelete(id: number) {
     setError(null);
     if (!getVideoOwnerSecret(id)) {
-      setError("このブラウザに保存された所有者キーがありません。アップロードした端末でのみ削除できます。");
+      setError(t("videosDeleteMissingKey"));
       return;
     }
     setDeletingId(id);
@@ -45,7 +48,7 @@ export function VideoListClient({ videos }: { videos: Video[] }) {
       if (!json?.ok) {
         const status = json?.status ?? res.status;
         const message =
-          json?.message ?? "削除に失敗しました。もう一度お試しください。";
+          json?.message ?? t("videosDeleteFailed");
         setError(`(${status}) ${message}`);
         return;
       }
@@ -55,7 +58,7 @@ export function VideoListClient({ videos }: { videos: Video[] }) {
       const message =
         error instanceof Error
           ? error.message
-          : "削除中にエラーが発生しました。もう一度お試しください。";
+          : t("videosDeleteUnexpected");
       setError(`(500) ${message}`);
     } finally {
       setDeletingId(null);
@@ -64,12 +67,20 @@ export function VideoListClient({ videos }: { videos: Video[] }) {
 
   return (
     <div style={{ marginTop: 16 }}>
+      <nav style={{ marginBottom: 16 }}>
+        <Link href="/" style={{ marginRight: 12 }}>
+          {t("navTop")}
+        </Link>
+        <Link href="/materials">{t("navMaterials")}</Link>
+      </nav>
+      <h1>{t("videosPageTitle")}</h1>
+      <p style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>{t("videosPageDescription")}</p>
       {error && (
-        <div style={{ marginBottom: 12, color: "red" }}>エラー: {error}</div>
+        <div style={{ marginBottom: 12, color: "red" }}>{t("errorPrefix")} {error}</div>
       )}
 
       {items.length === 0 ? (
-        <div>データがありません。</div>
+        <div>{t("videosEmpty")}</div>
       ) : (
         <table
           style={{
@@ -82,13 +93,13 @@ export function VideoListClient({ videos }: { videos: Video[] }) {
             <tr>
               <th style={{ borderBottom: "1px solid #ccc", padding: 8 }}>ID</th>
               <th style={{ borderBottom: "1px solid #ccc", padding: 8 }}>
-                ファイル名
+                {t("videosTableFileName")}
               </th>
               <th style={{ borderBottom: "1px solid #ccc", padding: 8 }}>
-                作成日時
+                {t("videosTableCreatedAt")}
               </th>
               <th style={{ borderBottom: "1px solid #ccc", padding: 8 }}>
-                操作
+                {t("videosTableActions")}
               </th>
             </tr>
           </thead>
@@ -117,13 +128,13 @@ export function VideoListClient({ videos }: { videos: Video[] }) {
                     rel="noreferrer"
                     style={{ marginRight: 8 }}
                   >
-                    開く
+                    {t("videosActionOpen")}
                   </a>
                   <a
                     href={`/videos/${video.id}/sync`}
                     style={{ marginRight: 8 }}
                   >
-                    歌詞同期
+                    {t("videosActionSync")}
                   </a>
                   <button
                     type="button"
@@ -132,10 +143,10 @@ export function VideoListClient({ videos }: { videos: Video[] }) {
                     title={
                       getVideoOwnerSecret(video.id)
                         ? undefined
-                        : "アップロードした端末でのみ削除できます"
+                        : t("videosDeleteDeviceOnly")
                     }
                   >
-                    {deletingId === video.id ? "削除中..." : "削除"}
+                    {deletingId === video.id ? t("videosDeleting") : t("videosActionDelete")}
                   </button>
                 </td>
               </tr>

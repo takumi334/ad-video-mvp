@@ -7269,10 +7269,10 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                     }}
                   >
                     <div style={{ fontSize: 11, fontWeight: 700, color: "#92400e", marginBottom: 6 }}>
-                      名前隠し設定（固定位置・簡易版）
+                      {t("nameHideSettingsTitle")}
                     </div>
                     <div style={{ fontSize: 10, color: "#78716c", lineHeight: 1.45, marginBottom: 8 }}>
-                      名前表示位置がほぼ固定のレイアウト向けです。指定した矩形に常に隠しを重ねます。辞書は保存されます（OCRによる照合は今後の拡張用）。
+                      {t("nameHideSettingsDescription")}
                     </div>
                     <label
                       style={{
@@ -7375,7 +7375,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                         color: "#444",
                       }}
                     >
-                      <span style={{ fontWeight: 600, fontSize: 10, color: "#92400e" }}>名前欄矩形（ステージ％）</span>
+                      <span style={{ fontWeight: 600, fontSize: 10, color: "#92400e" }}>{t("nameRectLabel")}</span>
                       <label style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         左 X
                         <input
@@ -7518,14 +7518,14 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                       </div>
                     )}
                     <div style={{ fontSize: 10, fontWeight: 600, color: "#92400e", marginBottom: 4 }}>
-                      登録済み名前（保存・将来の自動照合用）
+                      {t("registeredNamesLabel")}
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
                       <input
                         type="text"
                         value={nameRuleDraft}
                         onChange={(e) => setNameRuleDraft(e.target.value)}
-                        placeholder="例: たろう"
+                        placeholder={t("nameExamplePlaceholder")}
                         style={{
                           flex: "1 1 140px",
                           minWidth: 120,
@@ -7562,7 +7562,7 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                       </button>
                     </div>
                     {nameMaskPreset.rules.length === 0 ? (
-                      <div style={{ fontSize: 10, color: "#a8a29e" }}>未登録</div>
+                      <div style={{ fontSize: 10, color: "#a8a29e" }}>{t("unsetLabel")}</div>
                     ) : (
                       <ul
                         style={{

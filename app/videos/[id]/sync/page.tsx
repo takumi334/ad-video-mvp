@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { getServerUiLocale } from "@/lib/i18n/serverUiLocale";
 import { notFound } from "next/navigation";
+import { VideoSyncRedirectClient } from "./VideoSyncRedirectClient";
 
 export async function generateMetadata({
   params,
@@ -10,11 +11,30 @@ export async function generateMetadata({
   const { id } = await params;
   const videoId = Number(id);
   if (!Number.isInteger(videoId) || videoId <= 0) {
-    return { title: "動画が見つかりません" };
+    return { title: "Video not found" };
   }
+  const locale = await getServerUiLocale();
+  const titleByLocale: Record<string, string> = {
+    ja: "歌詞同期へ移動",
+    en: "Move to editor",
+    es: "Ir al editor",
+    pt: "Ir para o editor",
+    id: "Pindah ke editor",
+    th: "ไปยังตัวแก้ไข",
+    ko: "편집 화면으로 이동",
+  };
+  const descByLocale: Record<string, string> = {
+    ja: `動画（ID: ${videoId}）の編集画面へ移動します。`,
+    en: `Redirecting to the editor for video ID ${videoId}.`,
+    es: `Redirigiendo al editor para el video ID ${videoId}.`,
+    pt: `Redirecionando para o editor do vídeo ID ${videoId}.`,
+    id: `Mengalihkan ke editor untuk video ID ${videoId}.`,
+    th: `กำลังย้ายไปยังหน้าตัวแก้ไขของวิดีโอ ID ${videoId}`,
+    ko: `동영상 ID ${videoId} 편집 화면으로 이동합니다.`,
+  };
   return {
-    title: "歌詞同期へ移動",
-    description: `動画（ID: ${videoId}）の編集画面へ移動します。歌ってみたの歌詞動画作成は編集画面で行います。`,
+    title: titleByLocale[locale] ?? titleByLocale.en,
+    description: descByLocale[locale] ?? descByLocale.en,
     robots: { index: false, follow: true },
   };
 }
@@ -33,12 +53,6 @@ export default async function VideoSyncPage({
   const editHref = `/videos/${videoId}`;
 
   return (
-    <div style={{ padding: 24 }}>
-      <meta httpEquiv="refresh" content={`0;url=${editHref}`} />
-      <p>編集画面へ移動しています...</p>
-      <p>
-        自動で遷移しない場合は <Link href={editHref}>こちら</Link> をクリックしてください。
-      </p>
-    </div>
+    <VideoSyncRedirectClient editHref={editHref} />
   );
 }
