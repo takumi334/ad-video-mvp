@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import NextImage from "next/image";
 import type { SegmentMaterialEditSettings } from "@/lib/segmentMaterialHistory";
+import { getLyricsDisplayLines, type LyricsCaptionLayoutMode } from "@/lib/lyricsCaptionLayout";
+import {
+  getCaptionLayoutForPreviewAndExport,
+  type PreviewAspectRatio,
+} from "@/lib/previewAspectLayout";
+import { PreviewLyricsCaptionAutoFit } from "@/lib/previewLyricsCaptionAutoFit";
 
 export type ImageCropAspectPreset = "1:1" | "9:16" | "16:9" | "free";
 export type ImageCropFitMode = "cover" | "contain";
@@ -16,6 +22,14 @@ type ImageCropEditorProps = {
   maxFrameWidth?: number;
   onApplyBackground: (file: File, settings: SegmentMaterialEditSettings) => void;
   onApplyOverlay: (file: File, settings: SegmentMaterialEditSettings) => void;
+  previewLyricsText?: string;
+  previewLyricsFontSize?: number;
+  previewLyricsColor?: string;
+  previewLyricsTextShadow?: string;
+  previewLyricsLayoutMode?: LyricsCaptionLayoutMode;
+  previewLyricsLineBreakAt?: number;
+  previewLyricsOffsetX?: number;
+  previewLyricsOffsetY?: number;
 };
 type FinalPreviewAspect = "1:1" | "9:16" | "16:9";
 type FinalPreviewMode = "background" | "overlay";
@@ -329,7 +343,20 @@ function exportFromFrame(
   });
 }
 
-export function ImageCropEditor({ imageUrl, maxFrameWidth = 340, onApplyBackground, onApplyOverlay }: ImageCropEditorProps) {
+export function ImageCropEditor({
+  imageUrl,
+  maxFrameWidth = 340,
+  onApplyBackground,
+  onApplyOverlay,
+  previewLyricsText,
+  previewLyricsFontSize,
+  previewLyricsColor,
+  previewLyricsTextShadow,
+  previewLyricsLayoutMode,
+  previewLyricsLineBreakAt,
+  previewLyricsOffsetX,
+  previewLyricsOffsetY,
+}: ImageCropEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -354,6 +381,7 @@ export function ImageCropEditor({ imageUrl, maxFrameWidth = 340, onApplyBackgrou
   const [finalPreviewScale, setFinalPreviewScale] = useState(1);
   const [finalPreviewOffsetXPct, setFinalPreviewOffsetXPct] = useState(0);
   const [finalPreviewOffsetYPct, setFinalPreviewOffsetYPct] = useState(0);
+  const [showLyricsOnFinalPreview, setShowLyricsOnFinalPreview] = useState(true);
   const [faceSupportState, setFaceSupportState] = useState<"checking" | "detected" | "none">("checking");
   const preservedBlobUrlsRef = useRef<Set<string>>(new Set());
 
@@ -398,6 +426,7 @@ export function ImageCropEditor({ imageUrl, maxFrameWidth = 340, onApplyBackgrou
         startMidY: number;
       }
   >(null);
+  const finalPreviewStageRef = useRef<HTMLDivElement>(null);
   const faceTargetRef = useRef({
     cropRect,
     fitMode,
@@ -853,6 +882,32 @@ export function ImageCropEditor({ imageUrl, maxFrameWidth = 340, onApplyBackgrou
     setFinalPreviewOffsetXPct(0);
     setFinalPreviewOffsetYPct(0);
   }, []);
+  const previewAspectRatio: PreviewAspectRatio =
+    finalPreviewAspect === "16:9"
+      ? "landscape"
+      : finalPreviewAspect === "1:1"
+        ? "square"
+        : "portrait";
+  const finalPreviewCaptionLayout = useMemo(
+    () => getCaptionLayoutForPreviewAndExport(previewAspectRatio),
+    [previewAspectRatio]
+  );
+  const finalPreviewLines = useMemo(
+    () =>
+      getLyricsDisplayLines(
+        (previewLyricsText ?? "").trim(),
+        previewLyricsLayoutMode ?? 1,
+        previewLyricsLineBreakAt ?? 0
+      ),
+    [previewLyricsText, previewLyricsLayoutMode, previewLyricsLineBreakAt]
+  );
+  const showLyricsCaption = showLyricsOnFinalPreview && finalPreviewLines.length > 0;
+  const captionBaseFont = clamp(previewLyricsFontSize ?? 28, 10, 120);
+  const captionColor = previewLyricsColor ?? "#ffffff";
+  const captionShadow =
+    previewLyricsTextShadow ?? "0 0 10px black, 0 1px 3px rgba(0,0,0,0.8)";
+  const captionOffsetX = previewLyricsOffsetX ?? 0;
+  const captionOffsetY = previewLyricsOffsetY ?? 0;
 
   const onFinalPreviewPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -1167,6 +1222,7 @@ export function ImageCropEditor({ imageUrl, maxFrameWidth = 340, onApplyBackgrou
             <div style={{ marginTop: 6, padding: 10, border: "1px solid #e2e8f0", borderRadius: 10, background: "#f8fafc", display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>仕上げ微調整（適用前）</div>
               <div
+                ref={finalPreviewStageRef}
                 style={{
                   position: "relative",
                   width: finalPreviewFrameW,
@@ -1194,6 +1250,83 @@ export function ImageCropEditor({ imageUrl, maxFrameWidth = 340, onApplyBackgrou
                     transform: `translate(${(finalPreviewOffsetXPct * 100).toFixed(2)}%, ${(finalPreviewOffsetYPct * 100).toFixed(2)}%) scale(${finalPreviewScale.toFixed(3)})`,
                   }}
                 />
+                {showLyricsCaption && previewLyricsLayoutMode === "vRight" ? (
+                  <PreviewLyricsCaptionAutoFit
+                    measureFrameRef={finalPreviewStageRef}
+                    baseFontSize={captionBaseFont}
+                    color={captionColor}
+                    textShadow={captionShadow}
+                    className="preview-pv-caption preview-pv-caption--v preview-pv-caption--vr"
+                    style={{
+                      position: "absolute",
+                      top: `${finalPreviewCaptionLayout.verticalTopPercent}%`,
+                      right: `${finalPreviewCaptionLayout.verticalSideInsetPercent}%`,
+                      writingMode: "vertical-rl",
+                      textAlign: "start",
+                      maxHeight: "88%",
+                      overflow: "hidden",
+                      lineHeight: 1.65,
+                      padding: "8px 4px",
+                      zIndex: 5,
+                      transform: `translate(${captionOffsetX}px, calc(-50% + ${captionOffsetY}px))`,
+                    }}
+                    contentKey={`crop-vr-${previewLyricsText}-${finalPreviewAspect}-${captionOffsetX}-${captionOffsetY}`}
+                  >
+                    {finalPreviewLines[0]}
+                  </PreviewLyricsCaptionAutoFit>
+                ) : null}
+                {showLyricsCaption && previewLyricsLayoutMode === "vLeft" ? (
+                  <PreviewLyricsCaptionAutoFit
+                    measureFrameRef={finalPreviewStageRef}
+                    baseFontSize={captionBaseFont}
+                    color={captionColor}
+                    textShadow={captionShadow}
+                    className="preview-pv-caption preview-pv-caption--v preview-pv-caption--vl"
+                    style={{
+                      position: "absolute",
+                      top: `${finalPreviewCaptionLayout.verticalTopPercent}%`,
+                      left: `${finalPreviewCaptionLayout.verticalSideInsetPercent}%`,
+                      writingMode: "vertical-lr",
+                      textAlign: "start",
+                      maxHeight: "88%",
+                      overflow: "hidden",
+                      lineHeight: 1.65,
+                      padding: "8px 4px",
+                      zIndex: 5,
+                      transform: `translate(${captionOffsetX}px, calc(-50% + ${captionOffsetY}px))`,
+                    }}
+                    contentKey={`crop-vl-${previewLyricsText}-${finalPreviewAspect}-${captionOffsetX}-${captionOffsetY}`}
+                  >
+                    {finalPreviewLines[0]}
+                  </PreviewLyricsCaptionAutoFit>
+                ) : null}
+                {showLyricsCaption &&
+                previewLyricsLayoutMode !== "vRight" &&
+                previewLyricsLayoutMode !== "vLeft" ? (
+                  <PreviewLyricsCaptionAutoFit
+                    measureFrameRef={finalPreviewStageRef}
+                    baseFontSize={captionBaseFont}
+                    color={captionColor}
+                    textShadow={captionShadow}
+                    className="preview-pv-caption preview-pv-caption--h"
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      bottom: `${finalPreviewCaptionLayout.horizontalBottomCssPercent}%`,
+                      textAlign: "center",
+                      lineHeight: 1.4,
+                      padding: "0 12px",
+                      zIndex: 5,
+                      transform: `translate(${captionOffsetX}px, ${captionOffsetY}px)`,
+                    }}
+                    contentKey={`crop-h-${previewLyricsText}-${finalPreviewAspect}-${captionOffsetX}-${captionOffsetY}-${previewLyricsLayoutMode ?? 1}`}
+                  >
+                    {finalPreviewLines.map((line, i) => (
+                      <div key={i}>{line}</div>
+                    ))}
+                  </PreviewLyricsCaptionAutoFit>
+                ) : null}
               </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {(["1:1", "9:16", "16:9"] as const).map((k) => (
@@ -1211,6 +1344,13 @@ export function ImageCropEditor({ imageUrl, maxFrameWidth = 340, onApplyBackgrou
                 </button>
                 <button type="button" style={pill(false)} onClick={resetFinalPreviewAdjust}>
                   リセット
+                </button>
+                <button
+                  type="button"
+                  style={pill(showLyricsOnFinalPreview)}
+                  onClick={() => setShowLyricsOnFinalPreview((v) => !v)}
+                >
+                  歌詞表示 {showLyricsOnFinalPreview ? "ON" : "OFF"}
                 </button>
               </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

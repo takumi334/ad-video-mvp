@@ -8727,6 +8727,14 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                             <ImageCropEditor
                               imageUrl={modalCropPick.url}
                               maxFrameWidth={360}
+                              previewLyricsText={modalRawLyrics}
+                              previewLyricsFontSize={lyrPi.fontSize}
+                              previewLyricsColor={lyrPi.color}
+                              previewLyricsTextShadow={lyrPi.textShadow}
+                              previewLyricsLayoutMode={previewDisplayMode}
+                              previewLyricsLineBreakAt={previewBreakAt}
+                              previewLyricsOffsetX={textOffsetX}
+                              previewLyricsOffsetY={textOffsetY}
                               onApplyBackground={(file, settings) => {
                                 if (previewRowIndex == null) return;
                                 offerLocalUploadHintThen(() => {
