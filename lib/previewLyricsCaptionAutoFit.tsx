@@ -18,6 +18,10 @@ import {
   LYRICS_CAPTION_PAD,
   lyricsCaptionInitialFontPx,
 } from "@/lib/lyricsCaptionFrameMetrics";
+import {
+  fitLyricsTextInBox,
+  type LyricsCaptionLayoutMode,
+} from "@/lib/lyricsCaptionLayout";
 
 const PAD = LYRICS_CAPTION_PAD;
 const MIN_FIT_PX = LYRICS_CAPTION_MIN_FIT_PX;
@@ -46,6 +50,11 @@ type Props = {
   onTouchStart?: (e: TouchEvent<HTMLDivElement>) => void;
   /** 歌詞・区間・モード等が変わったとき再測定 */
   contentKey: string | number;
+  autoWrapText?: string;
+  layoutMode?: LyricsCaptionLayoutMode;
+  lineBreakAt?: number;
+  maxLines?: number;
+  minFontSize?: number;
 };
 
 /**
@@ -63,9 +72,15 @@ export function PreviewLyricsCaptionAutoFit({
   onMouseDown,
   onTouchStart,
   contentKey,
+  autoWrapText,
+  layoutMode = 1,
+  lineBreakAt = 0,
+  maxLines = 4,
+  minFontSize = MIN_FIT_PX,
 }: Props) {
   const captionRef = useRef<HTMLDivElement>(null);
   const [effectivePx, setEffectivePx] = useState(() => Math.round(baseFontSize));
+  const [wrappedLines, setWrappedLines] = useState<string[] | null>(null);
 
   const measure = useCallback(() => {
     const frame = measureFrameRef.current;
@@ -75,6 +90,22 @@ export function PreviewLyricsCaptionAutoFit({
     const cw = frame.clientWidth;
     const ch = frame.clientHeight;
     if (cw < 8 || ch < 8) return;
+
+    if (typeof autoWrapText === "string") {
+      const fitted = fitLyricsTextInBox({
+        text: autoWrapText,
+        layoutMode,
+        lineBreakAt,
+        boxWidth: Math.max(8, cw - PAD * 2),
+        boxHeight: Math.max(8, ch - PAD * 2),
+        baseFontPx: baseFontSize,
+        minFontPx: minFontSize,
+        maxLines,
+      });
+      setWrappedLines(fitted.lines);
+      setEffectivePx((prev) => (prev === fitted.fontSize ? prev : fitted.fontSize));
+      return;
+    }
 
     const narrow =
       typeof window !== "undefined" && window.matchMedia("(max-width: 520px)").matches;
@@ -97,7 +128,16 @@ export function PreviewLyricsCaptionAutoFit({
       applyPx(s);
     }
     setEffectivePx((prev) => (prev === s ? prev : s));
-  }, [baseFontSize, contentKey, measureFrameRef]);
+  }, [
+    autoWrapText,
+    layoutMode,
+    lineBreakAt,
+    maxLines,
+    minFontSize,
+    baseFontSize,
+    contentKey,
+    measureFrameRef,
+  ]);
 
   useLayoutEffect(() => {
     measure();
@@ -130,7 +170,27 @@ export function PreviewLyricsCaptionAutoFit({
         textShadow,
       }}
     >
-      {children}
+      {wrappedLines == null ? (
+        children
+      ) : layoutMode === "vLeft" || layoutMode === "vRight" ? (
+        wrappedLines[0] ?? ""
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
+          {wrappedLines.map((line, i) => (
+            <span
+              key={i}
+              style={{
+                display: "inline-block",
+                background: "rgba(0,0,0,0.38)",
+                borderRadius: 6,
+                padding: "1px 8px",
+              }}
+            >
+              {line}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

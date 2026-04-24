@@ -106,6 +106,92 @@ export function wrapCanvasTextLine(ctx: CanvasRenderingContext2D, text: string, 
   return lines.length > 0 ? lines : [t];
 }
 
+export type FitLyricsTextInBoxOptions = {
+  text?: string;
+  logicalLines?: string[];
+  layoutMode: LyricsCaptionLayoutMode;
+  lineBreakAt?: number;
+  boxWidth: number;
+  boxHeight: number;
+  baseFontPx: number;
+  minFontPx?: number;
+  maxLines?: number;
+};
+
+export type FitLyricsTextInBoxResult = {
+  fontSize: number;
+  lines: string[];
+};
+
+function trimLines(lines: string[], maxLines: number): string[] {
+  if (lines.length <= maxLines) return lines;
+  const next = lines.slice(0, maxLines);
+  const last = next[maxLines - 1] ?? "";
+  next[maxLines - 1] = last.length > 0 ? `${last.slice(0, Math.max(1, last.length - 1))}…` : "…";
+  return next;
+}
+
+export function fitLyricsTextInBox(opts: FitLyricsTextInBoxOptions): FitLyricsTextInBoxResult {
+  const {
+    text = "",
+    logicalLines,
+    layoutMode,
+    lineBreakAt = 0,
+    boxWidth,
+    boxHeight,
+    baseFontPx,
+    minFontPx = MIN_EXPORT_FONT,
+    maxLines = 4,
+  } = opts;
+  const safeW = Math.max(8, boxWidth);
+  const safeH = Math.max(8, boxHeight);
+  const sourceLines = logicalLines ?? getLyricsDisplayLines(text, layoutMode, lineBreakAt);
+  if (sourceLines.length === 0) return { fontSize: clampLyricsFontSize(baseFontPx), lines: [] };
+
+  const canvas =
+    typeof document !== "undefined" ? document.createElement("canvas") : (null as HTMLCanvasElement | null);
+  const ctx = canvas?.getContext("2d") ?? null;
+  if (!ctx) {
+    return { fontSize: clampLyricsFontSize(baseFontPx), lines: trimLines(sourceLines, maxLines) };
+  }
+
+  let fs = Math.max(minFontPx, clampLyricsFontSize(baseFontPx));
+  const minFs = Math.max(10, minFontPx);
+  while (fs >= minFs) {
+    ctx.font = `700 ${fs}px sans-serif`;
+    if (layoutMode === "vLeft" || layoutMode === "vRight") {
+      const chars = Array.from(sourceLines[0] ?? "");
+      const step = fs * 1.15;
+      const totalH = chars.length * step;
+      const maxCharW = chars.reduce((m, ch) => Math.max(m, ctx.measureText(ch).width), 0);
+      if (totalH <= safeH && maxCharW <= safeW) {
+        return { fontSize: fs, lines: [sourceLines[0] ?? ""] };
+      }
+    } else {
+      const wrapped: string[] = [];
+      for (const line of sourceLines) {
+        wrapped.push(...wrapCanvasTextLine(ctx, line, safeW));
+      }
+      const lineHeight = fs * 1.28;
+      const blockH = wrapped.length * lineHeight;
+      const maxLineW = wrapped.reduce((m, line) => Math.max(m, ctx.measureText(line).width), 0);
+      if (wrapped.length <= maxLines && blockH <= safeH && maxLineW <= safeW + 0.5) {
+        return { fontSize: fs, lines: wrapped };
+      }
+    }
+    fs = Math.max(minFs, Math.floor(fs * 0.92));
+    if (fs === minFs) break;
+  }
+
+  ctx.font = `700 ${minFs}px sans-serif`;
+  if (layoutMode === "vLeft" || layoutMode === "vRight") {
+    return { fontSize: minFs, lines: [sourceLines[0] ?? ""] };
+  }
+  const wrapped: string[] = [];
+  for (const line of sourceLines) wrapped.push(...wrapCanvasTextLine(ctx, line, safeW));
+  return { fontSize: minFs, lines: trimLines(wrapped, maxLines) };
+}
+
 export type DrawLyricsOnExportCanvasOptions = {
   canvasWidth: number;
   canvasHeight: number;
@@ -147,68 +233,26 @@ export function drawLyricsCaptionOnExportCanvas(
   const margin = LYRICS_CAPTION_PAD;
   const { usableW, usableH } = lyricsCaptionUsableDimensions(W, H);
   const baseClamped = clampLyricsFontSize(uiBaseFontPx);
-  let fontSize = lyricsCaptionInitialFontPx(
+  const candidateBase = lyricsCaptionInitialFontPx(
     baseClamped,
     W,
     H,
     lyricsCaptionNarrowViewportMatchesPreview()
   );
-  fontSize = Math.min(MAX_EXPORT_FONT, Math.max(MIN_EXPORT_FONT, fontSize));
+  const fitted = fitLyricsTextInBox({
+    logicalLines: displayLines,
+    layoutMode: mode,
+    boxWidth: usableW,
+    boxHeight: usableH,
+    baseFontPx: Math.min(MAX_EXPORT_FONT, Math.max(MIN_EXPORT_FONT, candidateBase)),
+    minFontPx: MIN_EXPORT_FONT,
+    maxLines: 4,
+  });
+  const fontSize = fitted.fontSize;
+  const fittedLines = fitted.lines;
 
   const fill = hexToRgbaFill(lyricsColorHex, 0.98);
   const stroke = "rgba(0,0,0,0.75)";
-
-  const tryLayout = (fs: number) => {
-    ctx.font = `700 ${fs}px sans-serif`;
-    if (mode === "vLeft" || mode === "vRight") {
-      const block = displayLines[0] ?? "";
-      const chars = Array.from(block);
-      const step = fs * 1.15;
-      const totalH = chars.length * step;
-      const inset = cap.verticalInsetFraction;
-      const x = mode === "vLeft" ? W * inset + textOffsetX : W * (1 - inset) + textOffsetX;
-      const yCenterFrac = cap.verticalCenterFractionFromTop;
-      const y0 = H * yCenterFrac + textOffsetY - totalH / 2;
-      const top = y0;
-      const bottom = y0 + totalH;
-      const fitsV = top >= margin - 1 && bottom <= H - margin + 1;
-      const maxCharW = chars.reduce((m, ch) => Math.max(m, ctx.measureText(ch).width), 0);
-      const fitsH =
-        x - maxCharW / 2 >= margin - 1 && x + maxCharW / 2 <= W - margin + 1;
-      return { ok: fitsV && fitsH && chars.length > 0, fs, chars, step, x, y0, blockType: "vertical" as const };
-    }
-
-    const physical: string[] = [];
-    for (const logical of displayLines) {
-      physical.push(...wrapCanvasTextLine(ctx, logical, usableW));
-    }
-    const lineHeight = fs * 1.28;
-    const strokeW = Math.max(4, Math.round(fs * 0.15));
-    const totalBlockH = physical.length * lineHeight;
-    const bottomY = H * horizontalBottomFrac + textOffsetY;
-    const topY = bottomY - totalBlockH;
-    const fitsV = topY >= margin - 1 && bottomY <= H - margin + 1;
-    const maxLineW = physical.reduce((m, line) => Math.max(m, ctx.measureText(line).width), 0);
-    const fitsW = maxLineW <= usableW + 0.5;
-    return {
-      ok: fitsV && fitsW && physical.length > 0,
-      fs,
-      physical,
-      lineHeight,
-      strokeW,
-      bottomY,
-      blockType: "horizontal" as const,
-    };
-  };
-
-  let layout = tryLayout(fontSize);
-  while (!layout.ok && fontSize > MIN_EXPORT_FONT) {
-    fontSize = Math.max(MIN_EXPORT_FONT, Math.floor(fontSize * 0.92));
-    layout = tryLayout(fontSize);
-  }
-  if (!layout.ok) {
-    layout = tryLayout(MIN_EXPORT_FONT);
-  }
 
   ctx.save();
   ctx.textAlign = "center";
@@ -216,9 +260,14 @@ export function drawLyricsCaptionOnExportCanvas(
   ctx.fillStyle = fill;
   ctx.strokeStyle = stroke;
 
-  if (layout.blockType === "vertical") {
-    ctx.lineWidth = Math.max(4, Math.round(layout.fs * 0.14));
-    const { chars, step, x, y0 } = layout;
+  if (mode === "vLeft" || mode === "vRight") {
+    ctx.lineWidth = Math.max(4, Math.round(fontSize * 0.14));
+    const chars = Array.from(fittedLines[0] ?? "");
+    const step = fontSize * 1.15;
+    const inset = cap.verticalInsetFraction;
+    const x = mode === "vLeft" ? W * inset + textOffsetX : W * (1 - inset) + textOffsetX;
+    const yCenterFrac = cap.verticalCenterFractionFromTop;
+    const y0 = H * yCenterFrac + textOffsetY - (chars.length * step) / 2;
     for (let i = 0; i < chars.length; i++) {
       const ch = chars[i]!;
       const y = y0 + i * step + step / 2;
@@ -226,7 +275,10 @@ export function drawLyricsCaptionOnExportCanvas(
       ctx.fillText(ch, x, y);
     }
   } else {
-    const { physical, lineHeight, strokeW, bottomY } = layout;
+    const physical = fittedLines;
+    const lineHeight = fontSize * 1.28;
+    const strokeW = Math.max(4, Math.round(fontSize * 0.15));
+    const bottomY = H * horizontalBottomFrac + textOffsetY;
     ctx.lineWidth = strokeW;
     const cx = W * 0.5 + textOffsetX;
     for (let i = 0; i < physical.length; i++) {

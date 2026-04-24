@@ -1271,6 +1271,10 @@ export function ImageCropEditor({
                       transform: `translate(${captionOffsetX}px, calc(-50% + ${captionOffsetY}px))`,
                     }}
                     contentKey={`crop-vr-${previewLyricsText}-${finalPreviewAspect}-${captionOffsetX}-${captionOffsetY}`}
+                    autoWrapText={previewLyricsText ?? ""}
+                    layoutMode={previewLyricsLayoutMode ?? 1}
+                    lineBreakAt={previewLyricsLineBreakAt ?? 0}
+                    maxLines={4}
                   >
                     {finalPreviewLines[0]}
                   </PreviewLyricsCaptionAutoFit>
@@ -1296,6 +1300,10 @@ export function ImageCropEditor({
                       transform: `translate(${captionOffsetX}px, calc(-50% + ${captionOffsetY}px))`,
                     }}
                     contentKey={`crop-vl-${previewLyricsText}-${finalPreviewAspect}-${captionOffsetX}-${captionOffsetY}`}
+                    autoWrapText={previewLyricsText ?? ""}
+                    layoutMode={previewLyricsLayoutMode ?? 1}
+                    lineBreakAt={previewLyricsLineBreakAt ?? 0}
+                    maxLines={4}
                   >
                     {finalPreviewLines[0]}
                   </PreviewLyricsCaptionAutoFit>
@@ -1321,6 +1329,10 @@ export function ImageCropEditor({
                       transform: `translate(${captionOffsetX}px, ${captionOffsetY}px)`,
                     }}
                     contentKey={`crop-h-${previewLyricsText}-${finalPreviewAspect}-${captionOffsetX}-${captionOffsetY}-${previewLyricsLayoutMode ?? 1}`}
+                    autoWrapText={previewLyricsText ?? ""}
+                    layoutMode={previewLyricsLayoutMode ?? 1}
+                    lineBreakAt={previewLyricsLineBreakAt ?? 0}
+                    maxLines={4}
                   >
                     {finalPreviewLines.map((line, i) => (
                       <div key={i}>{line}</div>

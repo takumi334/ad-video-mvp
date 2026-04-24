@@ -6036,6 +6036,10 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                           beginSegmentDrag(fi, "text", t.clientX, t.clientY);
                         }}
                         contentKey={flowCaptionKey}
+                        autoWrapText={rawLyrics}
+                        layoutMode={flowDisplayMode}
+                        lineBreakAt={flowBreakAt}
+                        maxLines={4}
                       >
                         {lines[0]}
                       </PreviewLyricsCaptionAutoFit>
@@ -6058,6 +6062,10 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                           beginSegmentDrag(fi, "text", t.clientX, t.clientY);
                         }}
                         contentKey={flowCaptionKey}
+                        autoWrapText={rawLyrics}
+                        layoutMode={flowDisplayMode}
+                        lineBreakAt={flowBreakAt}
+                        maxLines={4}
                       >
                         {lines[0]}
                       </PreviewLyricsCaptionAutoFit>
@@ -6080,6 +6088,10 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                           beginSegmentDrag(fi, "text", t.clientX, t.clientY);
                         }}
                         contentKey={flowCaptionKey}
+                        autoWrapText={rawLyrics}
+                        layoutMode={flowDisplayMode}
+                        lineBreakAt={flowBreakAt}
+                        maxLines={4}
                       >
                         {lines.map((line, i) => (
                           <div key={i}>{line}</div>
@@ -6675,6 +6687,10 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                       beginSegmentDrag(pi, "text", t.clientX, t.clientY);
                     }}
                     contentKey={modalCaptionKey}
+                    autoWrapText={modalRawLyrics}
+                    layoutMode={previewDisplayMode}
+                    lineBreakAt={previewBreakAt}
+                    maxLines={4}
                   >
                     {modalLines[0]}
                   </PreviewLyricsCaptionAutoFit>
@@ -6697,6 +6713,10 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                       beginSegmentDrag(pi, "text", t.clientX, t.clientY);
                     }}
                     contentKey={modalCaptionKey}
+                    autoWrapText={modalRawLyrics}
+                    layoutMode={previewDisplayMode}
+                    lineBreakAt={previewBreakAt}
+                    maxLines={4}
                   >
                     {modalLines[0]}
                   </PreviewLyricsCaptionAutoFit>
@@ -6719,6 +6739,10 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
                       beginSegmentDrag(pi, "text", t.clientX, t.clientY);
                     }}
                     contentKey={modalCaptionKey}
+                    autoWrapText={modalRawLyrics}
+                    layoutMode={previewDisplayMode}
+                    lineBreakAt={previewBreakAt}
+                    maxLines={4}
                   >
                     {modalLines.map((line, i) => (
                       <div key={i}>{line}</div>
