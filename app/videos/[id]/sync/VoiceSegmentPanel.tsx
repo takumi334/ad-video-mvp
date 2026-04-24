@@ -4145,13 +4145,25 @@ export const VoiceSegmentPanel = forwardRef<VoiceSegmentPanelHandle, Props>(func
 
   const applyMaterialHistoryToSegment = useCallback(
     async (segIndex: number, row: SegmentMaterialHistoryEntry & { resolvedUrl?: string }) => {
-      const url = row.resolvedUrl ?? row.imageUrl ?? (await resolveSegmentMaterialHistoryUrl(row)) ?? "";
+      // For IndexedDB-backed rows, generate a fresh object URL for the segment.
+      // Reusing row.resolvedUrl can get revoked when the history list refreshes.
+      const freshBlobUrl = row.blobId ? await resolveSegmentMaterialHistoryUrl(row) : null;
+      const url = (freshBlobUrl ?? row.imageUrl ?? row.resolvedUrl ?? "").trim();
+      console.log("[segment-material-apply-click]", {
+        segIndex,
+        imageId: row.imageId,
+        hasBlobId: Boolean(row.blobId),
+        rowResolvedUrl: row.resolvedUrl ?? "",
+        appliedUrl: url,
+      });
       if (!url) {
         window.alert("素材を復元できませんでした");
         return;
       }
       setSegmentImage(segIndex, url, "uploaded", {
         materialHistoryId: row.imageId,
+        imageUrl: url,
+        previewUrl: url,
         imageEditSettings: row.editSettings,
         selectedAt: new Date().toISOString(),
       });
