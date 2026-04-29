@@ -15,6 +15,7 @@
     "@vercel/blob": "^2.3.3",
     "dotenv": "^17.3.1",
     "framer-motion": "^12.38.0",
+    "idb": "^8.0.3",
     "next": "16.1.6",
     "onnxruntime-web": "1.18.0",
     "pg": "^8.19.0",
