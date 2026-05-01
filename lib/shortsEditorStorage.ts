@@ -1,4 +1,4 @@
-import type { OutputAspect, ShortFrame } from "@/lib/shortsEditorTypes";
+import type { OutputAspect, ShortFrame, ShortsMediaType } from "@/lib/shortsEditorTypes";
 
 export const SHORTS_MULTI_EDITOR_KEY = "shorts-multi-image-editor-v1";
 
@@ -8,6 +8,7 @@ export type PersistedShortsProjectMeta = {
   imageName: string;
   imageWidth: number;
   imageHeight: number;
+  mediaType?: ShortsMediaType;
   frames: ShortFrame[];
 };
 
@@ -24,6 +25,7 @@ export function createPersistableProject(input: {
   imageName: string;
   imageWidth: number;
   imageHeight: number;
+  mediaType?: ShortsMediaType;
   frames: ShortFrame[];
 }): PersistedShortsProjectMeta {
   return {
@@ -32,6 +34,7 @@ export function createPersistableProject(input: {
     imageName: input.imageName,
     imageWidth: input.imageWidth,
     imageHeight: input.imageHeight,
+    mediaType: input.mediaType,
     frames: input.frames.map((frame) => ({
       id: frame.id,
       order: frame.order,
@@ -41,7 +44,23 @@ export function createPersistableProject(input: {
       centerY: frame.centerY,
       cropW: frame.cropW,
       cropH: frame.cropH,
+      frameCropX: frame.frameCropX,
+      frameCropY: frame.frameCropY,
+      frameScale: frame.frameScale,
+      frameFit: frame.frameFit,
+      frameCropLeft: frame.frameCropLeft,
+      frameCropRight: frame.frameCropRight,
+      frameCropTop: frame.frameCropTop,
+      frameCropBottom: frame.frameCropBottom,
+      videoStart: frame.videoStart,
+      videoEnd: frame.videoEnd,
+      videoMuted: frame.videoMuted,
+      videoLoop: frame.videoLoop,
+      playbackRate: frame.playbackRate,
       text: frame.text,
+      narrationByLang: frame.narrationByLang,
+      bannerEnabled: frame.bannerEnabled,
+      bannerSettings: frame.bannerSettings,
       startTime: frame.startTime,
       endTime: frame.endTime,
       zoomScale: frame.zoomScale,
