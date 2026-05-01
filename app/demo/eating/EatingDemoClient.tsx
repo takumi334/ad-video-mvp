@@ -15,7 +15,7 @@ import {
   getShortsImageBlob,
   putShortsImageBlob,
 } from "@/lib/shortsImageIdb";
-import type { OutputAspect, ShortFrame, ShortsMediaType } from "@/lib/shortsEditorTypes";
+import type { OutputAspect, ShortFrame, ShortFrameBannerSettings, ShortsMediaType } from "@/lib/shortsEditorTypes";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type ReactElement } from "react";
 
 const ACCEPT_ATTR = "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.mov";
@@ -277,6 +277,10 @@ type BannerSettings = {
   bannerFit: "contain" | "cover";
   bannerCropX: number;
   bannerCropY: number;
+  bannerCropLeft?: number;
+  bannerCropRight?: number;
+  bannerCropTop?: number;
+  bannerCropBottom?: number;
   bannerScale: number;
   bannerOpacity: number;
   bannerImageId: string | null;
@@ -307,7 +311,7 @@ const DEFAULT_BANNER_SETTINGS: BannerSettings = {
   bannerImageId: null,
 };
 
-const accentColorCache = new WeakMap<HTMLImageElement, string>();
+const accentColorCache = new WeakMap<HTMLImageElement | HTMLVideoElement, string>();
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -320,6 +324,49 @@ function toSafeNumber(value: unknown, fallback: number): number {
 
 function toSafeString(value: unknown, fallback: string): string {
   return typeof value === "string" ? value : fallback;
+}
+
+type RawStoredFrameBannerSettings = Partial<ShortFrameBannerSettings> & {
+  bannerOffsetX?: number;
+  bannerOffsetY?: number;
+};
+
+function normalizeRestoredFrameBannerSettings(raw: unknown): ShortFrameBannerSettings | undefined {
+  if (raw === null || raw === undefined || typeof raw !== "object") return undefined;
+  const r = raw as RawStoredFrameBannerSettings;
+  return {
+    bannerPosition: r.bannerPosition === "bottom" ? "bottom" : "top",
+    bannerHeightPercent: clamp(
+      toSafeNumber(r.bannerHeightPercent, DEFAULT_BANNER_SETTINGS.bannerHeightPercent),
+      10,
+      35
+    ),
+    bannerFit: r.bannerFit === "cover" ? "cover" : "contain",
+    bannerCropX: clamp(toSafeNumber(r.bannerCropX ?? r.bannerOffsetX, 0), -100, 100),
+    bannerCropY: clamp(toSafeNumber(r.bannerCropY ?? r.bannerOffsetY, 0), -100, 100),
+    bannerCropLeft: clamp(toSafeNumber(r.bannerCropLeft, 0), 0, 50),
+    bannerCropRight: clamp(toSafeNumber(r.bannerCropRight, 0), 0, 50),
+    bannerCropTop: clamp(toSafeNumber(r.bannerCropTop, 0), 0, 50),
+    bannerCropBottom: clamp(toSafeNumber(r.bannerCropBottom, 0), 0, 50),
+    bannerScale: clamp(toSafeNumber(r.bannerScale, DEFAULT_BANNER_SETTINGS.bannerScale), 0.5, 2.5),
+    bannerOpacity: clamp(toSafeNumber(r.bannerOpacity, DEFAULT_BANNER_SETTINGS.bannerOpacity), 0, 1),
+  };
+}
+
+function globalBannerToFrameBannerSettings(g: BannerSettings): ShortFrameBannerSettings {
+  return {
+    bannerPosition: g.bannerPosition === "bottom" ? "bottom" : "top",
+    bannerHeightPercent: clamp(toSafeNumber(g.bannerHeightPercent, DEFAULT_BANNER_SETTINGS.bannerHeightPercent), 10, 35),
+    bannerFit: g.bannerFit === "cover" ? "cover" : "contain",
+    bannerCropX: clamp(toSafeNumber(g.bannerCropX, 0), -100, 100),
+    bannerCropY: clamp(toSafeNumber(g.bannerCropY, 0), -100, 100),
+    bannerCropLeft: clamp(toSafeNumber(g.bannerCropLeft, 0), 0, 50),
+    bannerCropRight: clamp(toSafeNumber(g.bannerCropRight, 0), 0, 50),
+    bannerCropTop: clamp(toSafeNumber(g.bannerCropTop, 0), 0, 50),
+    bannerCropBottom: clamp(toSafeNumber(g.bannerCropBottom, 0), 0, 50),
+    bannerScale: clamp(toSafeNumber(g.bannerScale, DEFAULT_BANNER_SETTINGS.bannerScale), 0.5, 2.5),
+    bannerOpacity: clamp(toSafeNumber(g.bannerOpacity, DEFAULT_BANNER_SETTINGS.bannerOpacity), 0, 1),
+  };
 }
 
 function newId(): string {
@@ -539,12 +586,13 @@ function pickExportMimeType(): { mimeType: string; ext: "mp4" | "webm" } {
 
 function drawCoverImage(
   ctx: CanvasRenderingContext2D,
-  image: HTMLImageElement,
+  image: HTMLImageElement | HTMLVideoElement,
   destW: number,
   destH: number
 ): void {
-  const sw = image.naturalWidth;
-  const sh = image.naturalHeight;
+  const dims = getMediaDims(image);
+  const sw = dims.width;
+  const sh = dims.height;
   if (sw <= 0 || sh <= 0) return;
   const scale = Math.max(destW / sw, destH / sh);
   const drawW = sw * scale;
@@ -556,14 +604,15 @@ function drawCoverImage(
 
 function drawCoverIntoRect(
   ctx: CanvasRenderingContext2D,
-  image: HTMLImageElement,
+  image: HTMLImageElement | HTMLVideoElement,
   dx: number,
   dy: number,
   dw: number,
   dh: number
 ): void {
-  const sw = image.naturalWidth;
-  const sh = image.naturalHeight;
+  const dims = getMediaDims(image);
+  const sw = dims.width;
+  const sh = dims.height;
   if (sw <= 0 || sh <= 0 || dw <= 0 || dh <= 0) return;
   const scale = Math.max(dw / sw, dh / sh);
   const drawW = sw * scale;
@@ -574,15 +623,16 @@ function drawCoverIntoRect(
 }
 
 function getFitRect(
-  image: HTMLImageElement,
+  image: HTMLImageElement | HTMLVideoElement,
   dx: number,
   dy: number,
   dw: number,
   dh: number,
   fit: "contain" | "cover"
 ): { x: number; y: number; width: number; height: number } {
-  const sw = image.naturalWidth;
-  const sh = image.naturalHeight;
+  const dims = getMediaDims(image);
+  const sw = dims.width;
+  const sh = dims.height;
   if (sw <= 0 || sh <= 0 || dw <= 0 || dh <= 0) return { x: dx, y: dy, width: 0, height: 0 };
   const scale = fit === "contain" ? Math.min(dw / sw, dh / sh) : Math.max(dw / sw, dh / sh);
   const width = sw * scale;
@@ -625,7 +675,7 @@ function getBannerDrawRect(
   outW: number,
   outH: number,
   banner: BannerSettings,
-  bannerImage: HTMLImageElement
+  bannerImage: HTMLImageElement | HTMLVideoElement
 ): { x: number; y: number; width: number; height: number } {
   const bannerH = outH * clamp(toSafeNumber(banner.bannerHeightPercent, 20) / 100, 0.1, 0.35);
   const baseY = banner.bannerPosition === "bottom" ? outH - bannerH : 0;
@@ -727,7 +777,7 @@ function pickFrameBannerSettings(frame: ShortFrame | null | undefined, globalBan
   return resolved;
 }
 
-function getThemeAccentColor(image: HTMLImageElement): string {
+function getThemeAccentColor(image: HTMLImageElement | HTMLVideoElement): string {
   const cached = accentColorCache.get(image);
   if (cached) return cached;
   const probe = document.createElement("canvas");
@@ -1182,8 +1232,8 @@ export default function EatingDemoClient() {
   const safeBannerScale = clamp(toSafeNumber(bannerSettings.bannerScale, 1), 0.5, 2.5);
   const safeBannerOpacity = clamp(toSafeNumber(bannerSettings.bannerOpacity, 0.9), 0, 1);
   const safeBannerHeightPercent = clamp(toSafeNumber(bannerSettings.bannerHeightPercent, 20), 10, 35);
-  const safeBannerFit = bannerSettings.bannerFit === "cover" ? "cover" : "contain";
-  const safeBannerPosition = bannerSettings.bannerPosition === "bottom" ? "bottom" : "top";
+  const safeBannerFit: "contain" | "cover" = bannerSettings.bannerFit === "cover" ? "cover" : "contain";
+  const safeBannerPosition: "top" | "bottom" = bannerSettings.bannerPosition === "bottom" ? "bottom" : "top";
   const sortedFrames = useMemo(
     () => {
       if (!activeProject) return [];
@@ -1263,7 +1313,10 @@ export default function EatingDemoClient() {
     try {
       const raw = localStorage.getItem(SHORTS_MULTI_BANNER_KEY);
       if (!raw) return;
-      const parsed = JSON.parse(raw) as Partial<BannerSettings>;
+      const parsed = JSON.parse(raw) as Partial<BannerSettings> & {
+        bannerOffsetX?: number;
+        bannerOffsetY?: number;
+      };
       setBannerSettings({
         bannerMode: typeof parsed.bannerMode === "boolean" ? parsed.bannerMode : DEFAULT_BANNER_SETTINGS.bannerMode,
         bannerEnabled: typeof parsed.bannerEnabled === "boolean" ? parsed.bannerEnabled : DEFAULT_BANNER_SETTINGS.bannerEnabled,
@@ -1457,61 +1510,7 @@ export default function EatingDemoClient() {
               videoMuted: Boolean((f as Partial<ShortFrame>).videoMuted),
               videoLoop: Boolean((f as Partial<ShortFrame>).videoLoop),
               playbackRate: clamp(toSafeNumber((f as Partial<ShortFrame>).playbackRate, 1), 0.25, 2),
-              bannerSettings: (f as Partial<ShortFrame>).bannerSettings
-                ? {
-                    ...((f as Partial<ShortFrame>).bannerSettings ?? {}),
-                    bannerCropX: clamp(
-                      toSafeNumber(
-                        ((f as Partial<ShortFrame>).bannerSettings as { bannerCropX?: number; bannerOffsetX?: number } | undefined)?.bannerCropX ??
-                          ((f as Partial<ShortFrame>).bannerSettings as { bannerCropX?: number; bannerOffsetX?: number } | undefined)?.bannerOffsetX,
-                        0
-                      ),
-                      -100,
-                      100
-                    ),
-                    bannerCropY: clamp(
-                      toSafeNumber(
-                        ((f as Partial<ShortFrame>).bannerSettings as { bannerCropY?: number; bannerOffsetY?: number } | undefined)?.bannerCropY ??
-                          ((f as Partial<ShortFrame>).bannerSettings as { bannerCropY?: number; bannerOffsetY?: number } | undefined)?.bannerOffsetY,
-                        0
-                      ),
-                      -100,
-                      100
-                    ),
-                    bannerCropLeft: clamp(
-                      toSafeNumber(
-                        ((f as Partial<ShortFrame>).bannerSettings as { bannerCropLeft?: number } | undefined)?.bannerCropLeft,
-                        0
-                      ),
-                      0,
-                      50
-                    ),
-                    bannerCropRight: clamp(
-                      toSafeNumber(
-                        ((f as Partial<ShortFrame>).bannerSettings as { bannerCropRight?: number } | undefined)?.bannerCropRight,
-                        0
-                      ),
-                      0,
-                      50
-                    ),
-                    bannerCropTop: clamp(
-                      toSafeNumber(
-                        ((f as Partial<ShortFrame>).bannerSettings as { bannerCropTop?: number } | undefined)?.bannerCropTop,
-                        0
-                      ),
-                      0,
-                      50
-                    ),
-                    bannerCropBottom: clamp(
-                      toSafeNumber(
-                        ((f as Partial<ShortFrame>).bannerSettings as { bannerCropBottom?: number } | undefined)?.bannerCropBottom,
-                        0
-                      ),
-                      0,
-                      50
-                    ),
-                  }
-                : undefined,
+              bannerSettings: normalizeRestoredFrameBannerSettings((f as Partial<ShortFrame>).bannerSettings),
             }))
           )
         : defaultSixFrames(outputAspect, locale);
@@ -1891,7 +1890,7 @@ export default function EatingDemoClient() {
                   ...f,
                   bannerSettings: {
                     ...(f.bannerSettings ?? {}),
-                    ...next,
+                    ...globalBannerToFrameBannerSettings(next),
                   },
                 }
               : f
@@ -1917,16 +1916,7 @@ export default function EatingDemoClient() {
           ? {
               ...f,
               bannerEnabled: true,
-              bannerSettings: {
-                ...bannerSettings,
-                bannerPosition: safeBannerPosition,
-                bannerHeightPercent: safeBannerHeightPercent,
-                bannerFit: safeBannerFit,
-                bannerCropX: safeBannerCropX,
-                bannerCropY: safeBannerCropY,
-                bannerScale: safeBannerScale,
-                bannerOpacity: safeBannerOpacity,
-              },
+              bannerSettings: globalBannerToFrameBannerSettings(bannerSettings),
             }
           : f
       );
@@ -1954,16 +1944,7 @@ export default function EatingDemoClient() {
       frames: project.frames.map((f) => ({
         ...f,
         bannerEnabled: true,
-        bannerSettings: {
-          ...bannerSettings,
-          bannerPosition: safeBannerPosition,
-          bannerHeightPercent: safeBannerHeightPercent,
-          bannerFit: safeBannerFit,
-          bannerCropX: safeBannerCropX,
-          bannerCropY: safeBannerCropY,
-          bannerScale: safeBannerScale,
-          bannerOpacity: safeBannerOpacity,
-        },
+        bannerSettings: globalBannerToFrameBannerSettings(bannerSettings),
       })),
     }));
   }
